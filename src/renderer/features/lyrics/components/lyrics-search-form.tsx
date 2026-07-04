@@ -259,6 +259,7 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                                 >
                                     {Array.isArray(previewData) ? (
                                         <SynchronizedLyrics
+                                            key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
                                             style={{ padding: 0 }}
                                             {...({
                                                 artist: selectedResult.artist,

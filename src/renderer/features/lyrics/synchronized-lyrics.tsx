@@ -10,6 +10,7 @@ import {
     useLyricsSettings,
     usePlaybackType,
     usePlayerActions,
+    usePlayerSong,
     usePlayerStatus,
 } from '/@/renderer/store';
 import { usePlayerTimestamp } from '/@/renderer/store/timestamp.store';
@@ -60,6 +61,8 @@ export const SynchronizedLyrics = ({
     const { mediaSeekToTimestamp } = usePlayerActions();
     const status = usePlayerStatus();
     const timestamp = usePlayerTimestamp();
+    const currentSong = usePlayerSong();
+    const songId = currentSong?.id;
 
     const effectiveOffsetMs = offsetMs ?? 0;
 
@@ -100,6 +103,7 @@ export const SynchronizedLyrics = ({
     const lastBaseTimeMsRef = useRef(0);
     const lastLocalTimeMsRef = useRef(0);
     const rAFRef = useRef<number | null>(null);
+    const lastSongIdRef = useRef<string | null>(null);
 
     const getCurrentLyric = (timeInMs: number) => {
         const activeLyrics = lyricRef.current;
@@ -323,7 +327,8 @@ export const SynchronizedLyrics = ({
     useEffect(() => {
         lastBaseTimeMsRef.current = timestamp * 1000 + effectiveOffsetMs;
         lastLocalTimeMsRef.current = performance.now();
-    }, [timestamp, effectiveOffsetMs]);
+        lastSongIdRef.current = songId || null;
+    }, [timestamp, effectiveOffsetMs, songId]);
 
     useEffect(() => {
         let active = true;
@@ -331,7 +336,7 @@ export const SynchronizedLyrics = ({
         const loop = () => {
             if (!active) return;
 
-            if (status === PlayerStatus.PLAYING) {
+            if (status === PlayerStatus.PLAYING && lastSongIdRef.current === (songId || null)) {
                 const now = performance.now();
                 const baseTime = lastBaseTimeMsRef.current;
                 const localTime = lastLocalTimeMsRef.current;
@@ -353,7 +358,7 @@ export const SynchronizedLyrics = ({
                 cancelAnimationFrame(rAFRef.current);
             }
         };
-    }, [status, setCurrentLyric]);
+    }, [status, setCurrentLyric, songId]);
 
     // Handle manual scrolling - pause auto-scroll when user scrolls
     useEffect(() => {

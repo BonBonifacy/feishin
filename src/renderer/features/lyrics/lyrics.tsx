@@ -347,6 +347,7 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
                             >
                                 {synced ? (
                                     <SynchronizedLyrics
+                                        key={currentSong?.id}
                                         {...(displayLyrics as SynchronizedLyricsProps)}
                                         offsetMs={displayOffsetMs}
                                         romajiLyrics={
