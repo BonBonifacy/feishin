@@ -45,6 +45,45 @@ const timeExp = /\[(\d{2,}):(\d{2})(?:\.(\d{2,3}))?]([^\n]+)(\n|$)/g;
 // [SSS,???] text
 const alternateTimeExp = /\[(\d*),(\d*)]([^\n]+)(\n|$)/g;
 
+const parseWordTime = (timeStr: string) => {
+    try {
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return 0;
+        const minutes = parseInt(parts[0], 10);
+        const secParts = parts[1].split('.');
+        const seconds = parseInt(secParts[0], 10);
+        const msStr = secParts[1] || '0';
+        const milis = msStr.length === 3 ? parseInt(msStr, 10) : parseInt(msStr, 10) * 10;
+        return (minutes * 60 + seconds) * 1000 + milis;
+    } catch {
+        return 0;
+    }
+};
+
+const convertSyllableLyricsToHtml = (text: string) => {
+    if (!/<(?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?>/.test(text)) {
+        return text;
+    }
+
+    const tokenExp = /(<(?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?>)/g;
+    const parts = text.split(tokenExp);
+
+    let html = '';
+    let currentWordTime = -1;
+
+    for (const part of parts) {
+        if (part.startsWith('<') && part.endsWith('>')) {
+            const timeStr = part.slice(1, -1);
+            currentWordTime = parseWordTime(timeStr);
+        } else if (part) {
+            const timeAttr = currentWordTime !== -1 ? ` data-time="${currentWordTime}"` : '';
+            html += `<span class="lyric-word"${timeAttr}>${part}</span>`;
+        }
+    }
+
+    return html;
+};
+
 const formatLyrics = (lyrics: string) => {
     const synchronizedLines = lyrics.matchAll(timeExp);
     const formattedLyrics: SynchronizedLyricsArray = [];
@@ -57,7 +96,7 @@ const formatLyrics = (lyrics: string) => {
 
         const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
 
-        formattedLyrics.push([timeInMilis, text]);
+        formattedLyrics.push([timeInMilis, convertSyllableLyricsToHtml(text)]);
     }
 
     if (formattedLyrics.length > 0) return formattedLyrics;

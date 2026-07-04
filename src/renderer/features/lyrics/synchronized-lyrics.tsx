@@ -176,6 +176,15 @@ export const SynchronizedLyrics = ({
 
             currentLyric.classList.add('active');
 
+            currentLyric.querySelectorAll('.lyric-word').forEach((wordNode) => {
+                const wordTime = parseInt(wordNode.getAttribute('data-time') || '0', 10);
+                if (wordTime <= timeInMs) {
+                    wordNode.classList.add('word-active');
+                } else {
+                    wordNode.classList.remove('word-active');
+                }
+            });
+
             if (followRef.current && !userScrollingRef.current) {
                 programmaticScrollRef.current = true;
                 doc?.scroll({ behavior: 'smooth', top: offsetTop });

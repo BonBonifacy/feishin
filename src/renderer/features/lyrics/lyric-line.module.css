@@ -30,3 +30,15 @@
     font-size: 0.8em;
     font-weight: 600;
 }
+
+.lyric-line :global(.lyric-word) {
+    transition: opacity 0.15s ease;
+}
+
+.lyric-line:global(.active) :global(.lyric-word) {
+    opacity: 0.55;
+}
+
+.lyric-line:global(.active) :global(.lyric-word.word-active) {
+    opacity: 1;
+}
