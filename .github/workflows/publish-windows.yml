@@ -31,3 +31,10 @@ jobs:
                   command: |
                       pnpm run publish:win
                   on_retry_command: pnpm cache delete
+
+            - name: Upload Windows Exe Artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Feishin-Windows-Build
+                  path: dist/*.exe
