@@ -32,13 +32,23 @@
 }
 
 .lyric-line :global(.lyric-word) {
-    transition: opacity 0.15s ease;
+    color: inherit;
 }
 
 .lyric-line:global(.active) :global(.lyric-word) {
-    opacity: 0.55;
-}
+    --active-color: var(--theme-colors-foreground);
+    --inactive-color: var(--theme-colors-foreground-muted, rgba(255, 255, 255, 0.45));
 
-.lyric-line:global(.active) :global(.lyric-word.word-active) {
-    opacity: 1;
+    background-color: var(--inactive-color);
+    background-image: linear-gradient(
+        var(--active-color),
+        var(--active-color)
+    );
+    background-repeat: no-repeat;
+    background-size: var(--progress, 0%) 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
+
+    transition: background-size 0.05s linear;
 }

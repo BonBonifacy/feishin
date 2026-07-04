@@ -97,6 +97,10 @@ export const SynchronizedLyrics = ({
     const programmaticScrollRef = useRef(false);
     const programmaticScrollTimeoutRef = useRef<null | ReturnType<typeof setTimeout>>(null);
 
+    const lastBaseTimeMsRef = useRef(0);
+    const lastLocalTimeMsRef = useRef(0);
+    const rAFRef = useRef<number | null>(null);
+
     const getCurrentLyric = (timeInMs: number) => {
         const activeLyrics = lyricRef.current;
         if (!activeLyrics?.length) {
@@ -120,6 +124,9 @@ export const SynchronizedLyrics = ({
 
     const setCurrentLyric = useCallback(
         (timeInMs: number, epoch?: number, targetIndex?: number) => {
+            if (lyricTimer.current) {
+                clearTimeout(lyricTimer.current);
+            }
             const start = performance.now();
             let nextEpoch: number;
 
@@ -176,14 +183,43 @@ export const SynchronizedLyrics = ({
 
             currentLyric.classList.add('active');
 
-            currentLyric.querySelectorAll('.lyric-word').forEach((wordNode) => {
+            const wordNodes = currentLyric.querySelectorAll('.lyric-word');
+            const activeLyrics = lyricRef.current;
+            const nextLineTime = (activeLyrics && index < activeLyrics.length - 1)
+                ? activeLyrics[index + 1][0]
+                : Infinity;
+
+            for (let i = 0; i < wordNodes.length; i++) {
+                const wordNode = wordNodes[i] as HTMLElement;
                 const wordTime = parseInt(wordNode.getAttribute('data-time') || '0', 10);
-                if (wordTime <= timeInMs) {
+
+                let nextWordTime = nextLineTime;
+                if (i < wordNodes.length - 1) {
+                    const parsedNext = parseInt(wordNodes[i + 1].getAttribute('data-time') || '0', 10);
+                    if (parsedNext > wordTime) {
+                        nextWordTime = parsedNext;
+                    }
+                }
+
+                let progress = 0;
+                if (timeInMs >= nextWordTime) {
+                    progress = 100;
+                    wordNode.classList.add('word-active');
+                } else if (timeInMs >= wordTime) {
+                    const duration = nextWordTime - wordTime;
+                    if (duration > 0) {
+                        progress = Math.min(100, Math.max(0, ((timeInMs - wordTime) / duration) * 100));
+                    } else {
+                        progress = 100;
+                    }
                     wordNode.classList.add('word-active');
                 } else {
+                    progress = 0;
                     wordNode.classList.remove('word-active');
                 }
-            });
+
+                wordNode.style.setProperty('--progress', `${progress}%`);
+            }
 
             if (followRef.current && !userScrollingRef.current) {
                 programmaticScrollRef.current = true;
@@ -283,6 +319,41 @@ export const SynchronizedLyrics = ({
 
         timerEpoch.current += 1;
     }, []);
+
+    useEffect(() => {
+        lastBaseTimeMsRef.current = timestamp * 1000 + effectiveOffsetMs;
+        lastLocalTimeMsRef.current = performance.now();
+    }, [timestamp, effectiveOffsetMs]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loop = () => {
+            if (!active) return;
+
+            if (status === PlayerStatus.PLAYING) {
+                const now = performance.now();
+                const baseTime = lastBaseTimeMsRef.current;
+                const localTime = lastLocalTimeMsRef.current;
+                const timeInMs = baseTime + (now - localTime);
+
+                setCurrentLyric(timeInMs);
+            }
+
+            rAFRef.current = requestAnimationFrame(loop);
+        };
+
+        if (status === PlayerStatus.PLAYING) {
+            rAFRef.current = requestAnimationFrame(loop);
+        }
+
+        return () => {
+            active = false;
+            if (rAFRef.current) {
+                cancelAnimationFrame(rAFRef.current);
+            }
+        };
+    }, [status, setCurrentLyric]);
 
     // Handle manual scrolling - pause auto-scroll when user scrolls
     useEffect(() => {

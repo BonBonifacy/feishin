@@ -61,18 +61,22 @@ const parseWordTime = (timeStr: string) => {
 };
 
 const convertSyllableLyricsToHtml = (text: string) => {
-    if (!/<(?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?>/.test(text)) {
+    const wordTimeExp = /([<\[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
+    if (!wordTimeExp.test(text)) {
         return text;
     }
 
-    const tokenExp = /(<(?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?>)/g;
-    const parts = text.split(tokenExp);
+    wordTimeExp.lastIndex = 0;
+    const parts = text.split(wordTimeExp);
 
     let html = '';
     let currentWordTime = -1;
 
     for (const part of parts) {
-        if (part.startsWith('<') && part.endsWith('>')) {
+        if (
+            (part.startsWith('<') && part.endsWith('>')) ||
+            (part.startsWith('[') && part.endsWith(']'))
+        ) {
             const timeStr = part.slice(1, -1);
             currentWordTime = parseWordTime(timeStr);
         } else if (part) {
