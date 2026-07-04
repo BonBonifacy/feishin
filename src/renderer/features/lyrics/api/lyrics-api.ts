@@ -119,6 +119,30 @@ const formatLyrics = (lyrics: string) => {
 
 export const formatLyricsForDisplay = formatLyrics;
 
+const formatLyricsResponse = (lyrics: LyricsResponse): LyricsResponse => {
+    if (typeof lyrics === 'string') {
+        const formatted = formatLyrics(lyrics);
+        if (typeof formatted === 'string') {
+            return convertSyllableLyricsToHtml(formatted);
+        }
+        return formatted;
+    } else if (Array.isArray(lyrics)) {
+        return lyrics.map(([time, text]) => [time, convertSyllableLyricsToHtml(text)]);
+    }
+    return lyrics;
+};
+
+const formatStructuredLyrics = (structuredLyrics: StructuredLyric[]): StructuredLyric[] => {
+    return structuredLyrics.map((item) => {
+        const formattedLyrics = formatLyricsResponse(item.lyrics);
+        return {
+            ...item,
+            lyrics: formattedLyrics,
+            synced: Array.isArray(formattedLyrics),
+        } as StructuredLyric;
+    });
+};
+
 export function computeSelectedFromResult(
     result: Pick<
         LyricsQueryResult,
@@ -198,7 +222,7 @@ export async function fetchLocalLyrics(params: {
                 query: { songId: song.id },
             })
             .catch(console.error);
-        if (subsonicLyrics?.length) return subsonicLyrics;
+        if (subsonicLyrics?.length) return formatStructuredLyrics(subsonicLyrics);
     } else if (hasFeature(server, ServerFeature.LYRICS_SINGLE_STRUCTURED)) {
         const jfLyrics = await api.controller
             .getLyrics({
@@ -209,7 +233,7 @@ export async function fetchLocalLyrics(params: {
         if (jfLyrics) {
             return {
                 artist: song.artists?.[0]?.name,
-                lyrics: typeof jfLyrics === 'string' ? formatLyrics(jfLyrics) : jfLyrics,
+                lyrics: formatLyricsResponse(jfLyrics),
                 name: song.name,
                 remote: false,
                 source: server?.name ?? 'music server',
@@ -218,7 +242,7 @@ export async function fetchLocalLyrics(params: {
     } else if (song.lyrics) {
         return {
             artist: song.artists?.[0]?.name,
-            lyrics: formatLyrics(song.lyrics),
+            lyrics: formatLyricsResponse(song.lyrics),
             name: song.name,
             remote: false,
             source: server?.name ?? 'music server',
