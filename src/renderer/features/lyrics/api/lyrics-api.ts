@@ -209,7 +209,7 @@ export async function fetchLocalLyrics(params: {
         if (jfLyrics) {
             return {
                 artist: song.artists?.[0]?.name,
-                lyrics: jfLyrics,
+                lyrics: typeof jfLyrics === 'string' ? formatLyrics(jfLyrics) : jfLyrics,
                 name: song.name,
                 remote: false,
                 source: server?.name ?? 'music server',
