@@ -45,6 +45,45 @@ const timeExp = /\[(\d{2,}):(\d{2})(?:\.(\d{2,3}))?]([^\n]+)(\n|$)/g;
 // [SSS,???] text
 const alternateTimeExp = /\[(\d*),(\d*)]([^\n]+)(\n|$)/g;
 
+const parseWordTime = (timeStr: string): number => {
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+        const [min, sec] = parts;
+        const minutes = parseInt(min, 10);
+        const seconds = parseFloat(sec);
+        return Math.round((minutes * 60 + seconds) * 1000);
+    }
+    return Math.round(parseFloat(timeStr) * 1000);
+};
+
+const convertSyllableLyricsToHtml = (text: string) => {
+    const wordTimeExp = /([<\[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
+    if (!wordTimeExp.test(text)) {
+        return text;
+    }
+
+    wordTimeExp.lastIndex = 0;
+    const parts = text.split(wordTimeExp);
+
+    let html = '';
+    let currentWordTime = -1;
+
+    for (const part of parts) {
+        if (
+            (part.startsWith('<') && part.endsWith('>')) ||
+            (part.startsWith('[') && part.endsWith(']'))
+        ) {
+            const timeStr = part.slice(1, -1);
+            currentWordTime = parseWordTime(timeStr);
+        } else if (part) {
+            const timeAttr = currentWordTime !== -1 ? ` data-time="${currentWordTime}"` : '';
+            html += `<span class="lyric-word"${timeAttr}>${part}</span>`;
+        }
+    }
+
+    return html;
+};
+
 const formatLyrics = (lyrics: string) => {
     const synchronizedLines = lyrics.matchAll(timeExp);
     const formattedLyrics: SynchronizedLyricsArray = [];
@@ -57,7 +96,10 @@ const formatLyrics = (lyrics: string) => {
 
         const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
 
-        formattedLyrics.push([timeInMilis, text]);
+        // Clean out any syllable/word-level time tags inside the text for pure line-by-line sync
+        const cleanText = convertSyllableLyricsToHtml(text.trim());
+
+        formattedLyrics.push([timeInMilis, cleanText]);
     }
 
     if (formattedLyrics.length > 0) return formattedLyrics;
@@ -68,7 +110,8 @@ const formatLyrics = (lyrics: string) => {
         const cleanText = text
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
-            .replaceAll(/\s\./g, '.');
+            .replaceAll(/\s\./g, '.')
+            .trim();
         formattedLyrics.push([Number(timeInMilis), cleanText]);
     }
 
@@ -79,6 +122,13 @@ const formatLyrics = (lyrics: string) => {
 };
 
 export const formatLyricsForDisplay = formatLyrics;
+
+const formatLyricsResponse = (res: LyricsResponse): LyricsResponse => {
+    if (typeof res === 'string') {
+        return formatLyrics(res);
+    }
+    return res;
+};
 
 export function computeSelectedFromResult(
     result: Pick<
@@ -159,7 +209,24 @@ export async function fetchLocalLyrics(params: {
                 query: { songId: song.id },
             })
             .catch(console.error);
-        if (subsonicLyrics?.length) return subsonicLyrics;
+        if (subsonicLyrics?.length) {
+            return subsonicLyrics.map((item) => {
+                const formatted = formatLyricsResponse(item.lyrics);
+                if (Array.isArray(formatted)) {
+                    return {
+                        ...item,
+                        lyrics: formatted,
+                        synced: true,
+                    } as StructuredLyric;
+                } else {
+                    return {
+                        ...item,
+                        lyrics: formatted,
+                        synced: false,
+                    } as StructuredLyric;
+                }
+            });
+        }
     } else if (hasFeature(server, ServerFeature.LYRICS_SINGLE_STRUCTURED)) {
         const jfLyrics = await api.controller
             .getLyrics({
@@ -170,7 +237,7 @@ export async function fetchLocalLyrics(params: {
         if (jfLyrics) {
             return {
                 artist: song.artists?.[0]?.name,
-                lyrics: jfLyrics,
+                lyrics: formatLyricsResponse(jfLyrics),
                 name: song.name,
                 remote: false,
                 source: server?.name ?? 'music server',
@@ -179,7 +246,7 @@ export async function fetchLocalLyrics(params: {
     } else if (song.lyrics) {
         return {
             artist: song.artists?.[0]?.name,
-            lyrics: formatLyrics(song.lyrics),
+            lyrics: formatLyricsResponse(song.lyrics),
             name: song.name,
             remote: false,
             source: server?.name ?? 'music server',

@@ -176,6 +176,84 @@ export const SynchronizedLyrics = ({
 
             currentLyric.classList.add('active');
 
+            // Syllable/word-level highlighting based on CSS transition
+            const wordNodes = currentLyric.querySelectorAll('.lyric-word');
+            if (wordNodes.length > 0) {
+                const activeLyrics = lyricRef.current;
+                const nextLineTime = (activeLyrics && index < activeLyrics.length - 1)
+                    ? activeLyrics[index + 1][0]
+                    : Infinity;
+
+                const isPlaying = status === PlayerStatus.PLAYING;
+
+                for (let i = 0; i < wordNodes.length; i++) {
+                    const wordNode = wordNodes[i] as HTMLElement;
+                    const wordTime = parseInt(wordNode.getAttribute('data-time') || '0', 10);
+
+                    let nextWordTime = nextLineTime;
+                    if (i < wordNodes.length - 1) {
+                        const parsedNext = parseInt(wordNodes[i + 1].getAttribute('data-time') || '0', 10);
+                        if (parsedNext > wordTime) {
+                            nextWordTime = parsedNext;
+                        }
+                    }
+
+                    const duration = nextWordTime - wordTime;
+
+                    if (timeInMs >= nextWordTime) {
+                        // Already sung
+                        wordNode.style.setProperty('--word-duration', '0s');
+                        wordNode.style.setProperty('--progress', '100%');
+                    } else if (timeInMs >= wordTime) {
+                        // Currently singing
+                        if (isPlaying) {
+                            const remainingMs = Math.max(0, nextWordTime - timeInMs);
+                            const initialProgress = duration > 0 ? ((timeInMs - wordTime) / duration) * 100 : 100;
+
+                            // Snap to the exact current percentage instantly to avoid spring-back jumps
+                            wordNode.style.setProperty('--word-duration', '0s');
+                            wordNode.style.setProperty('--progress', `${initialProgress}%`);
+
+                            // Transition forward smoothly over the remaining duration in the next frame
+                            requestAnimationFrame(() => {
+                                wordNode.style.setProperty('--word-duration', `${remainingMs / 1000}s`);
+                                wordNode.style.setProperty('--progress', '100%');
+                            });
+                        } else {
+                            // Paused: set static snapshot
+                            const staticProgress = duration > 0 ? ((timeInMs - wordTime) / duration) * 100 : 100;
+                            wordNode.style.setProperty('--word-duration', '0s');
+                            wordNode.style.setProperty('--progress', `${staticProgress}%`);
+                        }
+                    } else {
+                        // Upcoming syllables
+                        wordNode.style.setProperty('--word-duration', '0s');
+                        wordNode.style.setProperty('--progress', '0%');
+                    }
+                }
+            }
+
+            // Cleanly reset syllable progress of other lines to maintain visual integrity
+            const allLyrics = document.querySelectorAll('.synchronized-lyrics .lyric-line');
+            allLyrics.forEach((lineNode, lineIdx) => {
+                const words = lineNode.querySelectorAll('.lyric-word');
+                if (words.length === 0) return;
+
+                if (lineIdx < index) {
+                    words.forEach((w) => {
+                        const wordNode = w as HTMLElement;
+                        wordNode.style.setProperty('--word-duration', '0s');
+                        wordNode.style.setProperty('--progress', '100%');
+                    });
+                } else if (lineIdx > index) {
+                    words.forEach((w) => {
+                        const wordNode = w as HTMLElement;
+                        wordNode.style.setProperty('--word-duration', '0s');
+                        wordNode.style.setProperty('--progress', '0%');
+                    });
+                }
+            });
+
             if (followRef.current && !userScrollingRef.current) {
                 programmaticScrollRef.current = true;
                 doc?.scroll({ behavior: 'smooth', top: offsetTop });
@@ -194,7 +272,7 @@ export const SynchronizedLyrics = ({
                 );
             }
         },
-        [],
+        [status],
     );
 
     // Store the callback in a ref so it can be called recursively
