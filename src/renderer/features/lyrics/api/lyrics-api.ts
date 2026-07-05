@@ -61,7 +61,7 @@ const parseWordTime = (timeStr: string) => {
 };
 
 const convertSyllableLyricsToHtml = (text: string) => {
-    const wordTimeExp = /([<\[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
+    const wordTimeExp = /([<[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
     if (!wordTimeExp.test(text)) {
         return text;
     }

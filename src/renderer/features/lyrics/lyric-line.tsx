@@ -9,6 +9,7 @@ import { Stack } from '/@/shared/components/stack/stack';
 
 interface LyricLineProps extends ComponentPropsWithoutRef<'div'> {
     alignment: 'center' | 'left' | 'right';
+    dataTime?: number;
     fontSize: number;
     romajiText?: null | string;
     text: string;
@@ -19,6 +20,7 @@ export const LyricLine = memo(
     ({
         alignment,
         className,
+        dataTime,
         fontSize,
         romajiText,
         text,
@@ -36,7 +38,12 @@ export const LyricLine = memo(
         );
 
         return (
-            <Box className={clsx(styles.lyricLine, className)} style={style} {...props}>
+            <Box
+                className={clsx(styles.lyricLine, className)}
+                data-time={dataTime}
+                style={style}
+                {...props}
+            >
                 <Stack gap={0}>
                     {lines.map((line, index) => (
                         <span dangerouslySetInnerHTML={{ __html: sanitize(line) }} key={index} />
