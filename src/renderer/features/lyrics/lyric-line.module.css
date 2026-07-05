@@ -13,31 +13,9 @@
     will-change: transform;
 }
 
-.lyric-line :global(.lyric-word) {
-    --active-color: var(--theme-colors-foreground);
-    --inactive-color: var(--theme-colors-foreground);
-
-    background-color: var(--inactive-color);
-    background-image: linear-gradient(
-        var(--active-color),
-        var(--active-color)
-    );
-    background-repeat: no-repeat;
-    background-size: var(--progress, 0%) 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent !important;
-    transition: background-size var(--word-duration, 0s) linear;
-}
-
 .lyric-line:global(.active) {
     opacity: 1 !important;
     transform: scale(1);
-}
-
-.lyric-line:global(.active) :global(.lyric-word) {
-    --active-color: var(--theme-colors-foreground);
-    --inactive-color: var(--theme-colors-foreground-muted, rgba(255, 255, 255, 0.4));
 }
 
 .lyric-line:global(.unsynchronized) {
@@ -51,4 +29,24 @@
 .romaji-line {
     font-size: 0.8em;
     font-weight: 600;
+}
+
+.lyric-line :global(.lyric-word) {
+    color: inherit;
+}
+
+.lyric-line:global(.active) :global(.lyric-word) {
+    --active-color: var(--theme-colors-foreground);
+    --inactive-color: var(--theme-colors-foreground-muted, rgb(255 255 255 / 45%));
+
+    color: transparent !important;
+    background-color: var(--inactive-color);
+    background-image: linear-gradient(
+        var(--active-color),
+        var(--active-color)
+    );
+    background-repeat: no-repeat;
+    background-clip: text;
+    background-size: var(--progress, 0%) 100%;
+    transition: background-size 0.05s linear;
 }

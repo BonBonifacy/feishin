@@ -45,19 +45,23 @@ const timeExp = /\[(\d{2,}):(\d{2})(?:\.(\d{2,3}))?]([^\n]+)(\n|$)/g;
 // [SSS,???] text
 const alternateTimeExp = /\[(\d*),(\d*)]([^\n]+)(\n|$)/g;
 
-const parseWordTime = (timeStr: string): number => {
-    const parts = timeStr.split(':');
-    if (parts.length === 2) {
-        const [min, sec] = parts;
-        const minutes = parseInt(min, 10);
-        const seconds = parseFloat(sec);
-        return Math.round((minutes * 60 + seconds) * 1000);
+const parseWordTime = (timeStr: string) => {
+    try {
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return 0;
+        const minutes = parseInt(parts[0], 10);
+        const secParts = parts[1].split('.');
+        const seconds = parseInt(secParts[0], 10);
+        const msStr = secParts[1] || '0';
+        const milis = msStr.length === 3 ? parseInt(msStr, 10) : parseInt(msStr, 10) * 10;
+        return (minutes * 60 + seconds) * 1000 + milis;
+    } catch {
+        return 0;
     }
-    return Math.round(parseFloat(timeStr) * 1000);
 };
 
 const convertSyllableLyricsToHtml = (text: string) => {
-    const wordTimeExp = /([<\[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
+    const wordTimeExp = /([<[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
     if (!wordTimeExp.test(text)) {
         return text;
     }
@@ -96,10 +100,7 @@ const formatLyrics = (lyrics: string) => {
 
         const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
 
-        // Clean out any syllable/word-level time tags inside the text for pure line-by-line sync
-        const cleanText = convertSyllableLyricsToHtml(text.trim());
-
-        formattedLyrics.push([timeInMilis, cleanText]);
+        formattedLyrics.push([timeInMilis, convertSyllableLyricsToHtml(text)]);
     }
 
     if (formattedLyrics.length > 0) return formattedLyrics;
@@ -110,8 +111,7 @@ const formatLyrics = (lyrics: string) => {
         const cleanText = text
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
-            .replaceAll(/\s\./g, '.')
-            .trim();
+            .replaceAll(/\s\./g, '.');
         formattedLyrics.push([Number(timeInMilis), cleanText]);
     }
 
@@ -123,11 +123,28 @@ const formatLyrics = (lyrics: string) => {
 
 export const formatLyricsForDisplay = formatLyrics;
 
-const formatLyricsResponse = (res: LyricsResponse): LyricsResponse => {
-    if (typeof res === 'string') {
-        return formatLyrics(res);
+const formatLyricsResponse = (lyrics: LyricsResponse): LyricsResponse => {
+    if (typeof lyrics === 'string') {
+        const formatted = formatLyrics(lyrics);
+        if (typeof formatted === 'string') {
+            return convertSyllableLyricsToHtml(formatted);
+        }
+        return formatted;
+    } else if (Array.isArray(lyrics)) {
+        return lyrics.map(([time, text]) => [time, convertSyllableLyricsToHtml(text)]);
     }
-    return res;
+    return lyrics;
+};
+
+const formatStructuredLyrics = (structuredLyrics: StructuredLyric[]): StructuredLyric[] => {
+    return structuredLyrics.map((item) => {
+        const formattedLyrics = formatLyricsResponse(item.lyrics);
+        return {
+            ...item,
+            lyrics: formattedLyrics,
+            synced: Array.isArray(formattedLyrics),
+        } as StructuredLyric;
+    });
 };
 
 export function computeSelectedFromResult(
@@ -209,24 +226,7 @@ export async function fetchLocalLyrics(params: {
                 query: { songId: song.id },
             })
             .catch(console.error);
-        if (subsonicLyrics?.length) {
-            return subsonicLyrics.map((item) => {
-                const formatted = formatLyricsResponse(item.lyrics);
-                if (Array.isArray(formatted)) {
-                    return {
-                        ...item,
-                        lyrics: formatted,
-                        synced: true,
-                    } as StructuredLyric;
-                } else {
-                    return {
-                        ...item,
-                        lyrics: formatted,
-                        synced: false,
-                    } as StructuredLyric;
-                }
-            });
-        }
+        if (subsonicLyrics?.length) return formatStructuredLyrics(subsonicLyrics);
     } else if (hasFeature(server, ServerFeature.LYRICS_SINGLE_STRUCTURED)) {
         const jfLyrics = await api.controller
             .getLyrics({

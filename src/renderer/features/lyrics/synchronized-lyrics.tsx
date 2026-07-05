@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import isElectron from 'is-electron';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import styles from './synchronized-lyrics.module.css';
 
@@ -42,6 +42,10 @@ export const SynchronizedLyrics = ({
     translatedLyrics,
 }: SynchronizedLyricsProps) => {
     const playbackType = usePlaybackType();
+    const translatedLines = useMemo(
+        () => (translatedLyrics ? translatedLyrics.split('\n') : []),
+        [translatedLyrics],
+    );
     const lyricsSettings = useLyricsSettings();
     const displaySettings = useLyricsDisplaySettings(settingsKey);
     const settings = {
@@ -75,6 +79,23 @@ export const SynchronizedLyrics = ({
         [mediaSeekToTimestamp, playbackType],
     );
 
+    const handleLineClick = useCallback(
+        (e: React.MouseEvent<HTMLDivElement>) => {
+            const target = e.target as HTMLElement;
+            const lineNode = target.closest('.lyric-line.synchronized');
+            if (!lineNode) return;
+
+            const timeAttr = lineNode.getAttribute('data-time');
+            if (!timeAttr) return;
+
+            const time = parseInt(timeAttr, 10);
+            if (time > 0 && Number.isFinite(time)) {
+                handleSeek(time / 1000);
+            }
+        },
+        [handleSeek],
+    );
+
     // const seeked = useSeeked();
 
     // A reference to the timeout handler
@@ -96,6 +117,11 @@ export const SynchronizedLyrics = ({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const programmaticScrollRef = useRef(false);
     const programmaticScrollTimeoutRef = useRef<null | ReturnType<typeof setTimeout>>(null);
+
+    const lastBaseTimeMsRef = useRef(0);
+    const lastLocalTimeMsRef = useRef(0);
+    const rAFRef = useRef<null | number>(null);
+    const lastActiveIndexRef = useRef(-1);
 
     const getCurrentLyric = (timeInMs: number) => {
         const activeLyrics = lyricRef.current;
@@ -120,6 +146,9 @@ export const SynchronizedLyrics = ({
 
     const setCurrentLyric = useCallback(
         (timeInMs: number, epoch?: number, targetIndex?: number) => {
+            if (lyricTimer.current) {
+                clearTimeout(lyricTimer.current);
+            }
             const start = performance.now();
             let nextEpoch: number;
 
@@ -141,11 +170,14 @@ export const SynchronizedLyrics = ({
             }
 
             // Directly modify the dom instead of using react to prevent rerender
-            document
-                .querySelectorAll('.synchronized-lyrics .active')
-                .forEach((node) => node.classList.remove('active'));
-
             if (index === -1) {
+                if (lastActiveIndexRef.current !== -1) {
+                    document
+                        .querySelectorAll('.synchronized-lyrics .active')
+                        .forEach((node) => node.classList.remove('active'));
+                    lastActiveIndexRef.current = -1;
+                }
+
                 const activeLyrics = lyricRef.current;
                 if (!activeLyrics?.length) {
                     return;
@@ -168,95 +200,72 @@ export const SynchronizedLyrics = ({
             ) as HTMLElement;
             const currentLyric = document.querySelector(`#lyric-${index}`) as HTMLElement;
 
-            const offsetTop = currentLyric?.offsetTop - doc?.clientHeight / 2 || 0;
-
             if (currentLyric === null) {
                 return;
             }
 
-            currentLyric.classList.add('active');
+            if (
+                index !== lastActiveIndexRef.current ||
+                !currentLyric.classList.contains('active')
+            ) {
+                document
+                    .querySelectorAll('.synchronized-lyrics .active')
+                    .forEach((node) => node.classList.remove('active'));
 
-            // Syllable/word-level highlighting based on CSS transition
+                currentLyric.classList.add('active');
+
+                const offsetTop = currentLyric.offsetTop - doc?.clientHeight / 2 || 0;
+                if (followRef.current && !userScrollingRef.current) {
+                    programmaticScrollRef.current = true;
+                    doc?.scroll({ behavior: 'smooth', top: offsetTop });
+                }
+
+                lastActiveIndexRef.current = index;
+            }
+
             const wordNodes = currentLyric.querySelectorAll('.lyric-word');
-            if (wordNodes.length > 0) {
-                const activeLyrics = lyricRef.current;
-                const nextLineTime = (activeLyrics && index < activeLyrics.length - 1)
+            const activeLyrics = lyricRef.current;
+            const nextLineTime =
+                activeLyrics && index < activeLyrics.length - 1
                     ? activeLyrics[index + 1][0]
                     : Infinity;
 
-                const isPlaying = status === PlayerStatus.PLAYING;
+            for (let i = 0; i < wordNodes.length; i++) {
+                const wordNode = wordNodes[i] as HTMLElement;
+                const wordTime = parseInt(wordNode.getAttribute('data-time') || '0', 10);
 
-                for (let i = 0; i < wordNodes.length; i++) {
-                    const wordNode = wordNodes[i] as HTMLElement;
-                    const wordTime = parseInt(wordNode.getAttribute('data-time') || '0', 10);
-
-                    let nextWordTime = nextLineTime;
-                    if (i < wordNodes.length - 1) {
-                        const parsedNext = parseInt(wordNodes[i + 1].getAttribute('data-time') || '0', 10);
-                        if (parsedNext > wordTime) {
-                            nextWordTime = parsedNext;
-                        }
+                let nextWordTime = nextLineTime;
+                if (i < wordNodes.length - 1) {
+                    const parsedNext = parseInt(
+                        wordNodes[i + 1].getAttribute('data-time') || '0',
+                        10,
+                    );
+                    if (parsedNext > wordTime) {
+                        nextWordTime = parsedNext;
                     }
+                }
 
+                let progress = 0;
+                if (timeInMs >= nextWordTime) {
+                    progress = 100;
+                    wordNode.classList.add('word-active');
+                } else if (timeInMs >= wordTime) {
                     const duration = nextWordTime - wordTime;
-
-                    if (timeInMs >= nextWordTime) {
-                        // Already sung
-                        wordNode.style.setProperty('--word-duration', '0s');
-                        wordNode.style.setProperty('--progress', '100%');
-                    } else if (timeInMs >= wordTime) {
-                        // Currently singing
-                        if (isPlaying) {
-                            const remainingMs = Math.max(0, nextWordTime - timeInMs);
-                            const initialProgress = duration > 0 ? ((timeInMs - wordTime) / duration) * 100 : 100;
-
-                            // Snap to the exact current percentage instantly to avoid spring-back jumps
-                            wordNode.style.setProperty('--word-duration', '0s');
-                            wordNode.style.setProperty('--progress', `${initialProgress}%`);
-
-                            // Transition forward smoothly over the remaining duration in the next frame
-                            requestAnimationFrame(() => {
-                                wordNode.style.setProperty('--word-duration', `${remainingMs / 1000}s`);
-                                wordNode.style.setProperty('--progress', '100%');
-                            });
-                        } else {
-                            // Paused: set static snapshot
-                            const staticProgress = duration > 0 ? ((timeInMs - wordTime) / duration) * 100 : 100;
-                            wordNode.style.setProperty('--word-duration', '0s');
-                            wordNode.style.setProperty('--progress', `${staticProgress}%`);
-                        }
+                    if (duration > 0) {
+                        progress = Math.min(
+                            100,
+                            Math.max(0, ((timeInMs - wordTime) / duration) * 100),
+                        );
                     } else {
-                        // Upcoming syllables
-                        wordNode.style.setProperty('--word-duration', '0s');
-                        wordNode.style.setProperty('--progress', '0%');
+                        progress = 100;
                     }
+                    wordNode.classList.add('word-active');
+                } else {
+                    progress = 0;
+                    wordNode.classList.remove('word-active');
                 }
-            }
 
-            // Cleanly reset syllable progress of other lines to maintain visual integrity
-            const allLyrics = document.querySelectorAll('.synchronized-lyrics .lyric-line');
-            allLyrics.forEach((lineNode, lineIdx) => {
-                const words = lineNode.querySelectorAll('.lyric-word');
-                if (words.length === 0) return;
-
-                if (lineIdx < index) {
-                    words.forEach((w) => {
-                        const wordNode = w as HTMLElement;
-                        wordNode.style.setProperty('--word-duration', '0s');
-                        wordNode.style.setProperty('--progress', '100%');
-                    });
-                } else if (lineIdx > index) {
-                    words.forEach((w) => {
-                        const wordNode = w as HTMLElement;
-                        wordNode.style.setProperty('--word-duration', '0s');
-                        wordNode.style.setProperty('--progress', '0%');
-                    });
-                }
-            });
-
-            if (followRef.current && !userScrollingRef.current) {
-                programmaticScrollRef.current = true;
-                doc?.scroll({ behavior: 'smooth', top: offsetTop });
+                wordNode.style.setProperty('--progress', `${progress}%`);
             }
 
             if (index !== lyricRef.current!.length - 1) {
@@ -272,7 +281,7 @@ export const SynchronizedLyrics = ({
                 );
             }
         },
-        [status],
+        [],
     );
 
     // Store the callback in a ref so it can be called recursively
@@ -290,6 +299,7 @@ export const SynchronizedLyrics = ({
         // 'primary' handler for parsing lyrics, as unlike the other callbacks, it will
         // ALSO remove listeners on close.
         lyricRef.current = lyrics;
+        lastActiveIndexRef.current = -1;
 
         if (status === PlayerStatus.PLAYING) {
             // Use the current timestamp from player events
@@ -353,6 +363,41 @@ export const SynchronizedLyrics = ({
         timerEpoch.current += 1;
     }, []);
 
+    useEffect(() => {
+        lastBaseTimeMsRef.current = timestamp * 1000 + effectiveOffsetMs;
+        lastLocalTimeMsRef.current = performance.now();
+    }, [timestamp, effectiveOffsetMs]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loop = () => {
+            if (!active) return;
+
+            if (status === PlayerStatus.PLAYING) {
+                const now = performance.now();
+                const baseTime = lastBaseTimeMsRef.current;
+                const localTime = lastLocalTimeMsRef.current;
+                const timeInMs = baseTime + (now - localTime);
+
+                setCurrentLyric(timeInMs);
+            }
+
+            rAFRef.current = requestAnimationFrame(loop);
+        };
+
+        if (status === PlayerStatus.PLAYING) {
+            rAFRef.current = requestAnimationFrame(loop);
+        }
+
+        return () => {
+            active = false;
+            if (rAFRef.current) {
+                cancelAnimationFrame(rAFRef.current);
+            }
+        };
+    }, [status, setCurrentLyric]);
+
     // Handle manual scrolling - pause auto-scroll when user scrolls
     useEffect(() => {
         const container =
@@ -414,6 +459,7 @@ export const SynchronizedLyrics = ({
         <div
             className={clsx(styles.container, 'synchronized-lyrics overlay-scrollbar')}
             id="sychronized-lyrics-scroll-container"
+            onClick={handleLineClick}
             onMouseEnter={showScrollbar}
             onMouseLeave={hideScrollbar}
             ref={containerRef}
@@ -450,17 +496,13 @@ export const SynchronizedLyrics = ({
                 <LyricLine
                     alignment={settings.alignment}
                     className="lyric-line synchronized"
+                    dataTime={time}
                     fontSize={settings.fontSize}
                     id={`lyric-${idx}`}
                     key={idx}
-                    onClick={() => {
-                        if (time > 0 && Number.isFinite(time)) {
-                            handleSeek(time / 1000);
-                        }
-                    }}
                     romajiText={romajiLyrics?.[idx]?.[1]}
                     text={text}
-                    translatedText={translatedLyrics?.split('\n')[idx]}
+                    translatedText={translatedLines[idx]}
                 />
             ))}
         </div>
