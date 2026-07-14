@@ -39,14 +39,15 @@
     --active-color: var(--theme-colors-foreground);
     --inactive-color: var(--theme-colors-foreground-muted, rgb(255 255 255 / 45%));
 
-    color: transparent !important;
     background-color: var(--inactive-color);
     background-image: linear-gradient(
         var(--active-color),
         var(--active-color)
     );
     background-repeat: no-repeat;
-    background-clip: text;
     background-size: var(--progress, 0%) 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
     transition: background-size 0.05s linear;
 }
