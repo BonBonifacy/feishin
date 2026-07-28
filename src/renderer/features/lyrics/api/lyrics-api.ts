@@ -88,6 +88,32 @@ const convertSyllableLyricsToHtml = (text: string) => {
     return html;
 };
 
+export const mergeBilingualLyrics = (
+    lyrics: SynchronizedLyricsArray,
+    timeThresholdMs = 500,
+): SynchronizedLyricsArray => {
+    if (!lyrics || lyrics.length === 0) return lyrics;
+
+    const merged: SynchronizedLyricsArray = [];
+
+    for (const [time, text] of lyrics) {
+        const trimmedText = text ? text.trim() : '';
+        if (!trimmedText) continue;
+
+        if (merged.length > 0) {
+            const last = merged[merged.length - 1];
+            if (Math.abs(time - last[0]) <= timeThresholdMs) {
+                last[1] = `${last[1]}_BREAK_${trimmedText}`;
+                continue;
+            }
+        }
+
+        merged.push([time, trimmedText]);
+    }
+
+    return merged;
+};
+
 const formatLyrics = (lyrics: string) => {
     const synchronizedLines = lyrics.matchAll(timeExp);
     const formattedLyrics: SynchronizedLyricsArray = [];
@@ -100,10 +126,10 @@ const formatLyrics = (lyrics: string) => {
 
         const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
 
-        formattedLyrics.push([timeInMilis, convertSyllableLyricsToHtml(text)]);
+        formattedLyrics.push([timeInMilis, convertSyllableLyricsToHtml(text.trim())]);
     }
 
-    if (formattedLyrics.length > 0) return formattedLyrics;
+    if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
 
     const alternateSynchronizedLines = lyrics.matchAll(alternateTimeExp);
     for (const line of alternateSynchronizedLines) {
@@ -112,10 +138,10 @@ const formatLyrics = (lyrics: string) => {
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
             .replaceAll(/\s\./g, '.');
-        formattedLyrics.push([Number(timeInMilis), cleanText]);
+        formattedLyrics.push([Number(timeInMilis), cleanText.trim()]);
     }
 
-    if (formattedLyrics.length > 0) return formattedLyrics;
+    if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
 
     // If no synchronized lyrics were found, return the original lyrics
     return lyrics;
@@ -131,7 +157,10 @@ const formatLyricsResponse = (lyrics: LyricsResponse): LyricsResponse => {
         }
         return formatted;
     } else if (Array.isArray(lyrics)) {
-        return lyrics.map(([time, text]) => [time, convertSyllableLyricsToHtml(text)]);
+        const formatted = lyrics.map(
+            ([time, text]) => [time, convertSyllableLyricsToHtml(text.trim())] as [number, string],
+        );
+        return mergeBilingualLyrics(formatted);
     }
     return lyrics;
 };

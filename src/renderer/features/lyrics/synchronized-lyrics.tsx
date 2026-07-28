@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import styles from './synchronized-lyrics.module.css';
 
+import { mergeBilingualLyrics } from '/@/renderer/features/lyrics/api/lyrics-api';
 import { LyricLine } from '/@/renderer/features/lyrics/lyric-line';
 import {
     useLyricsDisplaySettings,
@@ -42,6 +43,9 @@ export const SynchronizedLyrics = ({
     translatedLyrics,
 }: SynchronizedLyricsProps) => {
     const playbackType = usePlaybackType();
+    const processedLyrics = useMemo(() => {
+        return mergeBilingualLyrics(lyrics);
+    }, [lyrics]);
     const translatedLines = useMemo(
         () => (translatedLyrics ? translatedLyrics.split('\n') : []),
         [translatedLyrics],
@@ -212,7 +216,24 @@ export const SynchronizedLyrics = ({
                     .querySelectorAll('.synchronized-lyrics .active')
                     .forEach((node) => node.classList.remove('active'));
 
-                currentLyric.classList.add('active');
+                const activeLyrics = lyricRef.current;
+                const activeTime = activeLyrics ? activeLyrics[index]?.[0] : undefined;
+
+                if (activeTime !== undefined) {
+                    document
+                        .querySelectorAll('.synchronized-lyrics .lyric-line')
+                        .forEach((node) => {
+                            const timeAttr = node.getAttribute('data-time');
+                            if (timeAttr) {
+                                const lineTime = parseInt(timeAttr, 10);
+                                if (Math.abs(lineTime - activeTime) <= 500) {
+                                    node.classList.add('active');
+                                }
+                            }
+                        });
+                } else {
+                    currentLyric.classList.add('active');
+                }
 
                 const offsetTop = currentLyric.offsetTop - doc?.clientHeight / 2 || 0;
                 if (followRef.current && !userScrollingRef.current) {
@@ -298,7 +319,7 @@ export const SynchronizedLyrics = ({
         // This handler is used to handle when lyrics change. It is in some sense the
         // 'primary' handler for parsing lyrics, as unlike the other callbacks, it will
         // ALSO remove listeners on close.
-        lyricRef.current = lyrics;
+        lyricRef.current = processedLyrics;
         lastActiveIndexRef.current = -1;
 
         if (status === PlayerStatus.PLAYING) {
@@ -312,7 +333,7 @@ export const SynchronizedLyrics = ({
         }
 
         return () => {};
-    }, [lyrics, setCurrentLyric, status, timestamp]);
+    }, [processedLyrics, setCurrentLyric, status, timestamp]);
 
     useEffect(() => {
         // This handler is used to deal with changes to the current delay. If the offset
@@ -492,7 +513,7 @@ export const SynchronizedLyrics = ({
                     text={`"${name} by ${artist}"`}
                 />
             )}
-            {lyrics.map(([time, text], idx) => (
+            {processedLyrics.map(([time, text], idx) => (
                 <LyricLine
                     alignment={settings.alignment}
                     className="lyric-line synchronized"
