@@ -127,8 +127,16 @@ export function WebPlayer() {
                 return;
             }
 
+            if (num === 1) {
+                setTimestamp(e.playedSeconds);
+            }
+
             if (repeat === PlayerRepeat.ONE) {
                 handleRepeatOne(1, e.playedSeconds, getDuration(playerRef.current.player1().ref));
+                return;
+            }
+
+            if (usePlayerStoreBase.getState().player.status !== PlayerStatus.PLAYING) {
                 return;
             }
 
@@ -170,6 +178,7 @@ export function WebPlayer() {
             num,
             player2,
             repeat,
+            setTimestamp,
             transitionType,
             volume,
         ],
@@ -181,8 +190,16 @@ export function WebPlayer() {
                 return;
             }
 
+            if (num === 2) {
+                setTimestamp(e.playedSeconds);
+            }
+
             if (repeat === PlayerRepeat.ONE) {
                 handleRepeatOne(2, e.playedSeconds, getDuration(playerRef.current.player2().ref));
+                return;
+            }
+
+            if (usePlayerStoreBase.getState().player.status !== PlayerStatus.PLAYING) {
                 return;
             }
 
@@ -224,6 +241,7 @@ export function WebPlayer() {
             num,
             player1,
             repeat,
+            setTimestamp,
             transitionType,
             volume,
         ],
@@ -238,7 +256,7 @@ export function WebPlayer() {
         promise.then(() => {
             playerRef.current?.player1()?.ref?.getInternalPlayer().pause();
 
-            // If mediaAutoNext resulted in a paused state (e.g. end of queue,
+            // If mediaAutoNext resulted in a stopped/paused state (e.g. end of queue,
             // or pauseOnNextSongEnd flag), stop all audio instead of restoring volume.
             const currentStatus = usePlayerStoreBase.getState().player.status;
             if (currentStatus !== PlayerStatus.PLAYING) {
@@ -275,6 +293,11 @@ export function WebPlayer() {
         {
             onCurrentSongChange: () => {
                 setIsTransitioning(false);
+            },
+            onPlayerQueueChange: () => {
+                if (usePlayerStoreBase.getState().player.status !== PlayerStatus.PLAYING) {
+                    setIsTransitioning(false);
+                }
             },
             onPlayerSeekToTimestamp: (properties) => {
                 setIsTransitioning(false);
@@ -388,7 +411,7 @@ export function WebPlayer() {
                 transitionType === PlayerStyle.CROSSFADE ||
                 transitionType === PlayerStyle.GAPLESS
             ) {
-                setTimestamp(Number(currentTime.toFixed(0)));
+                setTimestamp(currentTime);
             }
         }, 500);
 
@@ -597,6 +620,13 @@ function crossfadeHandler(args: {
     } = args;
     const player = `player${playerNum}`;
 
+    if (usePlayerStoreBase.getState().player.status !== PlayerStatus.PLAYING) {
+        if (isTransitioning) {
+            setIsTransitioning(false);
+        }
+        return;
+    }
+
     // If there is no next song to transition to, ensure we don't enter or stay in a transition
     if (!hasNextSong) {
         currentPlayer.setVolume(volume);
@@ -704,7 +734,22 @@ function gaplessHandler(args: {
         setIsTransitioning,
     } = args;
 
+    if (usePlayerStoreBase.getState().player.status !== PlayerStatus.PLAYING) {
+        if (isTransitioning) {
+            setIsTransitioning(false);
+        }
+        return null;
+    }
+
     if (!hasNextSong) {
+        return null;
+    }
+
+    // Ignore invalid durations (e.g. during URL load or empty source placeholder)
+    if (!Number.isFinite(duration) || duration < 2) {
+        if (isTransitioning) {
+            setIsTransitioning(false);
+        }
         return null;
     }
 

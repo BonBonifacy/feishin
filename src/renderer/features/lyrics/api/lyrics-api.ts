@@ -3,6 +3,7 @@ import isElectron from 'is-electron';
 
 import { api } from '/@/renderer/api';
 import { queryKeys } from '/@/renderer/api/query-keys';
+import { getDefaultStructuredIndex } from '/@/renderer/features/lyrics/api/lyrics-utils';
 import { queryClient, QueryHookArgs } from '/@/renderer/lib/react-query';
 import { getServerById, useSettingsStore } from '/@/renderer/store';
 import { hasFeature } from '/@/shared/api/utils';
@@ -17,7 +18,7 @@ import {
     QueueSong,
     Song,
     StructuredLyric,
-    SynchronizedLyricsArray,
+    SynchronizedLyrics,
 } from '/@/shared/types/domain-types';
 import { LyricSource } from '/@/shared/types/domain-types';
 import { LyricsResponse } from '/@/shared/types/domain-types';
@@ -116,7 +117,7 @@ export const mergeBilingualLyrics = (
 
 const formatLyrics = (lyrics: string) => {
     const synchronizedLines = lyrics.matchAll(timeExp);
-    const formattedLyrics: SynchronizedLyricsArray = [];
+    const formattedLyrics: SynchronizedLyrics = [];
 
     for (const line of synchronizedLines) {
         const [, minute, sec, ms, text] = line;
@@ -124,9 +125,7 @@ const formatLyrics = (lyrics: string) => {
         const seconds = parseInt(sec, 10);
         const milis = ms?.length === 3 ? parseInt(ms, 10) : parseInt(ms, 10) * 10;
 
-        const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
-
-        formattedLyrics.push([timeInMilis, convertSyllableLyricsToHtml(text.trim())]);
+        formattedLyrics.push({ startMs: timeInMilis, text: convertSyllableLyricsToHtml(text.trim()) });
     }
 
     if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
@@ -138,7 +137,8 @@ const formatLyrics = (lyrics: string) => {
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
             .replaceAll(/\s\./g, '.');
-        formattedLyrics.push([Number(timeInMilis), cleanText.trim()]);
+        formattedLyrics.push({ startMs: Number(timeInMilis), text: cleanText.trim() });
+    }
     }
 
     if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
@@ -245,6 +245,7 @@ export async function fetchLocalLyrics(params: {
     song: QueueSong;
 }): Promise<FullLyricsMetadata | null | StructuredLyric[]> {
     const { serverId, signal, song } = params;
+
     const server = getServerById(serverId);
     if (!server) throw new Error('Server not found');
 
@@ -372,7 +373,6 @@ export const lyricsQueries = {
                 const prev = queryClient.getQueryData<LyricsQueryResult>(lyricsKey);
                 const overrideSelection = prev?.overrideSelection ?? null;
                 const suppressRemoteAuto = prev?.suppressRemoteAuto ?? false;
-                const selectedStructuredIndex = prev?.selectedStructuredIndex ?? 0;
                 const selectedOffsetMs = prev?.selectedOffsetMs ?? 0;
                 const preferLocalLyrics = useSettingsStore.getState().lyrics.preferLocalLyrics;
 
@@ -423,6 +423,12 @@ export const lyricsQueries = {
                         overrideDataPromise,
                     ]);
                 }
+
+                const selectedStructuredIndex =
+                    prev?.selectedStructuredIndex ??
+                    (Array.isArray(local) && local.length > 0
+                        ? getDefaultStructuredIndex(local)
+                        : 0);
 
                 const partial: Pick<
                     LyricsQueryResult,

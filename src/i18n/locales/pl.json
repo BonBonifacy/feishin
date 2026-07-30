@@ -43,7 +43,8 @@
         "openApplicationDirectory": "Otwórz katalog aplikacji",
         "goToCurrent": "Przejdź do aktualnego elementu",
         "collapseAllFolders": "Zwiń wszystkie foldery",
-        "expandAllFolders": "Rozwiń wszystkie foldery"
+        "expandAllFolders": "Rozwiń wszystkie foldery",
+        "createPlaylistFromQueue": "Utwórz $t(entity.playlist, {\"count\": 1}) z kolejki"
     },
     "common": {
         "increase": "Zwiększ",
@@ -174,7 +175,13 @@
         "numberOfResults": "{{numberOfResults}} wyników",
         "grouping": "Grupowanie",
         "back": "Wstecz",
-        "openFolder": "Otwórz folder"
+        "openFolder": "Otwórz folder",
+        "saveAndClose": "Zapisz i zamknij",
+        "undo": "Cofnij",
+        "lastScan": "Ostatnie skanowanie {{date}}",
+        "scanFolderCount": "{{count}} folderów",
+        "scanItemCount": "{{count}} elementów",
+        "scanningLibrary": "Skanowanie biblioteki…"
     },
     "entity": {
         "genre_one": "Gatunek",
@@ -187,13 +194,13 @@
         "playlist_few": "Playlisty",
         "playlist_many": "Playlist",
         "artist_one": "Wykonawca",
-        "artist_few": "Wykonawców",
+        "artist_few": "Wykonawcy",
         "artist_many": "Wykonawców",
         "folderWithCount_one": "{{count}} katalog",
         "folderWithCount_few": "{{count}} katalogi",
         "folderWithCount_many": "{{count}} katalogów",
         "albumArtist_one": "Wykonawca albumu",
-        "albumArtist_few": "Wykonawców albumów",
+        "albumArtist_few": "Wykonawcy albumów",
         "albumArtist_many": "Wykonawców albumów",
         "track_one": "Utwór",
         "track_few": "Utwory",
@@ -348,7 +355,8 @@
             "input_preferInstantMixDescription": "Używaj tylko natychmiastowego mixu, by otrzymać podobne piosenki. przydatne gdy masz wtyczki które zmieniają to zachowanie",
             "input_preferRemoteUrl": "Preferuj publiczny url",
             "input_remoteUrl": "Publiczny url",
-            "input_remoteUrlPlaceholder": "Opcjonalne: publiczny url dla funkcji zewnętrznych"
+            "input_remoteUrlPlaceholder": "Opcjonalne: publiczny url dla funkcji zewnętrznych",
+            "input_passwordNoSSO": "Autoryzacja przez reverse proxy (SSO) nie jest obsługiwana. Tylko autoryzacja nazwą użytkownika/hasłem i autoryzacja Subsonic są obsługiwane"
         },
         "addToPlaylist": {
             "success": "Dodano $t(entity.trackWithCount, {\"count\": {{message}} }) do $t(entity.playlistWithCount, {\"count\": {{numOfPlaylists}} })",
@@ -434,6 +442,9 @@
         },
         "editRadioStation": {
             "success": "Stacja radiowa zaktualizowana pomyślnie"
+        },
+        "createPrefilledPlaylist": {
+            "title": "Utwórz $t(entity.playlist, {\"count\": 1}) z wybranych piosenek"
         }
     },
     "page": {
@@ -454,13 +465,21 @@
                 "dynamicIsImage": "Włącz obraz w tle",
                 "lyricOffset": "Opóźnienie tekstów (ms)",
                 "lyricOpacityNonActive": "Przezroczystość nieaktywnego tekstu",
-                "lyricScaleNonActive": "Skala nieaktywnego tekstu"
+                "lyricScaleNonActive": "Skala nieaktywnego tekstu",
+                "lyricPaddingLeft": "Odstęp tekstu z lewej (%)",
+                "lyricPaddingRight": "Odstęp tekstu z prawej (%)",
+                "lyricFollowScrollAlignment": "Wyrównywanie tekstu",
+                "lyricLineLeadTime": "Czas przed linijką (ms)"
             },
             "upNext": "Następne",
             "lyrics": "Tekst",
             "related": "Powiązane",
             "visualizer": "Wizualizer",
-            "noLyrics": "Nie znaleziono tekstu"
+            "noLyrics": "Nie znaleziono tekstu",
+            "lyricLayers": "Warstwy tekstu",
+            "lyricLanguage": "Język",
+            "showPronunciation": "Wymowa",
+            "showTranslation": "Tłumaczenie"
         },
         "appMenu": {
             "selectServer": "Wybierz serwer",
@@ -478,7 +497,8 @@
             "selectMusicFolder": "Wybierz folder muzyki",
             "noMusicFolder": "Nie wybrano folderu muzyki",
             "multipleMusicFolders": "Wybrano {{count}} folderów muzyki",
-            "commandPalette": "Otwórz paletę komend"
+            "commandPalette": "Otwórz paletę komend",
+            "logout": "Wyloguj"
         },
         "contextMenu": {
             "addToPlaylist": "$t(action.addToPlaylist)",
@@ -506,7 +526,8 @@
             "goToAlbum": "Przejdź do $t(entity.album, {\"count\": 1})",
             "goToAlbumArtist": "Przejdź do $t(entity.albumArtist, {\"count\": 1})",
             "moveItems": "$t(action.moveItems)",
-            "goTo": "Przejdź do"
+            "goTo": "Przejdź do",
+            "editMetadata": "Edytuj metadane"
         },
         "albumDetail": {
             "moreFromArtist": "Więcej od $t(entity.artist, {\"count\": 1})",
@@ -528,20 +549,20 @@
         },
         "sidebar": {
             "nowPlaying": "Teraz odtwarzane",
-            "playlists": "$t(entity.playlist, {\"count\": 2})",
-            "search": "$t(common.search)",
-            "tracks": "$t(entity.track, {\"count\": 2})",
-            "albums": "$t(entity.album, {\"count\": 2})",
-            "genres": "$t(entity.genre, {\"count\": 2})",
-            "folders": "$t(entity.folder, {\"count\": 2})",
-            "settings": "$t(common.setting, {\"count\": 2})",
-            "home": "$t(common.home)",
-            "artists": "$t(entity.artist, {\"count\": 2})",
-            "albumArtists": "$t(entity.albumArtist, {\"count\": 2})",
-            "shared": "Udostępniono $t(entity.playlist, {\"count\": 2})",
+            "playlists": "Playlisty",
+            "search": "Szukaj",
+            "tracks": "Utwory",
+            "albums": "Albumy",
+            "genres": "Gatunki",
+            "folders": "Katalogi",
+            "settings": "Ustawienia",
+            "home": "Główna",
+            "artists": "Wykonawców",
+            "albumArtists": "Wykonawców albumów",
+            "shared": "Udostępnione playlisty",
             "myLibrary": "Moja biblioteka",
-            "favorites": "$t(entity.favorite, {\"count\": 2})",
-            "radio": "$t(entity.radioStation, {\"count\": 2})",
+            "favorites": "Ulubione",
+            "radio": "Stacje radiowe",
             "collections": "Kolekcje"
         },
         "home": {
@@ -554,7 +575,7 @@
             "genres": "$t(entity.genre, {\"count\": 2})"
         },
         "setting": {
-            "playbackTab": "Odtworzenia",
+            "playbackTab": "Odtwarzanie",
             "generalTab": "Ogólne",
             "hotkeysTab": "Skróty klawiszowe",
             "windowTab": "Okno",
@@ -614,7 +635,27 @@
         "itemDetail": {
             "copyPath": "Kopiuj ścieżkę do schowka",
             "copiedPath": "Ścieżka została skopiowana pomyślnie",
-            "openFile": "Pokaż utwór w menedżerze plików"
+            "openFile": "Pokaż utwór w menedżerze plików",
+            "tagConfiguration": "Konfiguracja tagów",
+            "addTagConfig": "Dodaj tag…",
+            "multiValueToggle": "Wielowartościowy",
+            "autocompleteSource": "Źródło autowypełniania",
+            "customValues": "Niestandardowe wartości",
+            "addCustomValue": "Dodaj niestandardową wartość…",
+            "serverSuggestions": "Serwer",
+            "fileNotWritable": "Plik nie jest dostępny lub zapisywalny",
+            "triggerRescan": "Uruchom ponowne skanowanie biblioteki po zapisaniu",
+            "addField": "Dodaj pole…",
+            "emptyFields": "Pola nie mogą być puste",
+            "tagsTab": "Tagi",
+            "artworkTab": "Okładka",
+            "removeArtwork": "Usuń okładkę",
+            "noArtwork": "Brak okładki",
+            "multipleValues": "(Wiele wartości)",
+            "multipleArtworks": "Wiele okładek",
+            "noLocalSongs": "Nie znaleziono piosenek z lokalnymi ścieżkami",
+            "readPartialFailure": "Nie udało się odczytać metadanych z {{count}} na {{total}} plik(ów)",
+            "writePartialFailure": "Nie udało się zapisać {{count}} plik(ów)"
         },
         "manageServers": {
             "title": "Zarządzaj serwerami",
@@ -701,7 +742,9 @@
         "sleepTimer_cancel": "Anuluj wyłączanie",
         "albumRadio": "Radio albumu",
         "scrobbleForceSubmit": "Wymuś scrobble",
-        "sleepTimer_endOfAlbum": "Koniec aktualnego albumu"
+        "sleepTimer_endOfAlbum": "Koniec aktualnego albumu",
+        "nextAlbum": "Alt+kliknięcie aby odtworzyć następny album",
+        "previousAlbum": "Alt+kliknięcie aby odtworzyć poprzedni album"
     },
     "setting": {
         "crossfadeStyle_description": "Wybierz styl przenikania, który ma być używany do odtwarzania dźwięku",
@@ -917,9 +960,9 @@
         "discordPausedStatus_description": "Jeżeli włączone, status będzie pokazywany kiedy odtwarzanie jest wstrzymane",
         "preferLocalLyrics": "Preferuj lokalne teksty",
         "preferLocalLyrics_description": "Jeśli to możliwe, preferuj lokalne teksty zamiast tekstów zdalnych",
-        "lastfm": "Pokazuj linki do last.fm",
+        "lastfm": "Pokazuj linki last.fm",
         "lastfm_description": "Pokazuj linki do Last.fm na stronach wykonawców/albumów",
-        "musicbrainz": "Pokazuj linki do MusicBrainz",
+        "musicbrainz": "Pokazuj linki MusicBrainz",
         "musicbrainz_description": "Pokazuj linki do MusicBrainz na stronach wykonawców/albumów, gdzie istnieje MusicBrainz ID",
         "discordPausedStatus": "Pokaż status podczas pauzy",
         "discordServeImage": "Wysyłaj obrazy dla {{discord}} z serwera",
@@ -1001,11 +1044,9 @@
         "autoDJ_timing": "Czas dodawania",
         "autoDJ_timing_description": "Ilość piosenek pozostałych w kolejce przed tym gdy zostanie włączony automatyczny DJ",
         "logLevel": "Poziom logów",
-        "logLevel_description": "Ustawia minimalny poziom logów do wyświetlenia. debugowanie wyświetla wszystkie logi błędy wyświetla tylko błędy",
+        "logLevel_description": "Ustawia minimalny poziom logów do wyświetlenia",
         "logLevel_optionDebug": "Debugowanie",
-        "logLevel_optionError": "Błędy",
         "logLevel_optionInfo": "Info",
-        "logLevel_optionWarn": "Ostrzeżenia",
         "useThemeAccentColor": "Używaj koloru akcentu motywu",
         "useThemeAccentColor_description": "Używaj głównego koloru ustawionego w wybranym motywie zamiast niestandardowego koloru akcentu",
         "artistRadioCount_description": "Ustawia liczbę piosenek do załadowania dla radia wykonawcy i radia utworu",
@@ -1148,7 +1189,23 @@
         "enableRomaji_description": "Wyświetlaj linijkę z wymową romaji pod japońskim tekstem.",
         "enableRomaji": "Włącz generowanie romaji",
         "windowBarTrackinfo": "Informacje o utworze w tytule okna",
-        "windowBarTrackinfo_description": "Wyświetlaj tytuł, wykonawcę, pozycję w kolejce i stan Odtwarzania/Wstrzymania w tytule okna."
+        "windowBarTrackinfo_description": "Wyświetlaj tytuł, wykonawcę, pozycję w kolejce i stan Odtwarzania/Wstrzymania w tytule okna.",
+        "audioDeviceDefault": "Domyślne systemu",
+        "microtonalPitchControls": "Mikrotonowe sterowanie wysokością dźwięku",
+        "microtonalPitchControls_description": "Dodaj więcej sterowania wysokością dźwięku pomiędzy półtonami",
+        "hotkey_playbackNextAlbum": "Następny album",
+        "hotkey_playbackPreviousAlbum": "Poprzedni album",
+        "logLevel_optionDebugDescription": "zawiera info, plus szczegółowe informacje debugowania i ocenzurowane odpowiedzi API",
+        "logLevel_optionInfoDescription": "zawiera info, ostrzeżenia i błędy",
+        "exportDiagnostics": "Eksportuj diagnostykę",
+        "autoDJ_allowDuplicates": "Pozwól na duplikaty",
+        "autoDJ_allowDuplicates_description": "Pozwalaj na ponowne dodawanie piosenek lub albumów które są już w kolejce przez Automatycznego DJ",
+        "autoDJ_onlySimilar": "Tylko podobne",
+        "autoDJ_onlySimilar_description": "Dodawaj tylko te elementy które są podobne do wywołującej piosenki. Liczba elementów jest traktowane jako maksymalna liczba elementów do dodania, zamiast zapełniania do limitu przez inne źródła",
+        "showFavorites": "Pokaż polubienie",
+        "showFavorites_description": "Steruje tym czy przycisk polubienia (serce) jest pokazywany w interfejsie",
+        "showQueueInSidebar_description": "Panel zostanie dodany do paska bocznego odtwarzacza który wyświetla kolejkę odtwarzania",
+        "showQueueInSidebar": "Pokaż kolejkę odtwarzania w pasku bocznym"
     },
     "table": {
         "config": {
@@ -1190,7 +1247,10 @@
                 "verticalBorders": "Obwódki kolumn",
                 "showHeader": "Pokaż nagłówek",
                 "albumImageSize": "Rozmiar obrazów albumów",
-                "albumGroupConfig": "Konfiguracja grupy albumów"
+                "albumGroupConfig": "Konfiguracja grupy albumów",
+                "albumGroupMetadata": "Pola metadanych",
+                "albumGroupShowFavoriteRating": "Pokaż ulubione i oceny",
+                "albumGroupVerticalLayout": "Pionowy układ"
             },
             "label": {
                 "releaseDate": "Data premiery",

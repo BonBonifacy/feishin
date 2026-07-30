@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import Player from 'mpris-service';
 
 import { getMainWindow } from '/@/main/index';
+import log from '/@/main/logger';
 import { QueueSong } from '/@/shared/types/domain-types';
 import { PlayerRepeat, PlayerStatus } from '/@/shared/types/types';
 
@@ -202,7 +203,7 @@ ipcMain.on(
                 'xesam:userRating': song.userRating ? song.userRating / 5 : null,
             };
         } catch (err) {
-            console.error(err);
+            log.error(err);
         }
     },
 );
