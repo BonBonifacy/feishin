@@ -102,6 +102,10 @@ const getAudioDevices = async () => {
     return ipcRenderer.invoke('player-get-audio-devices');
 };
 
+const rendererTrackEnded = (cb: () => void) => {
+    ipcRenderer.on('renderer-player-track-ended', () => cb());
+};
+
 const rendererAutoNext = (cb: (data: PlayerData) => void) => {
     ipcRenderer.on('renderer-player-auto-next', (_, data) => cb(data));
 };
@@ -112,6 +116,10 @@ const rendererCurrentTime = (cb: (data: number) => void) => {
 
 const rendererNext = (cb: (data: PlayerData) => void) => {
     ipcRenderer.on('renderer-player-next', (_, data) => cb(data));
+};
+
+const rendererNextAlbum = (cb: (data: PlayerData) => void) => {
+    ipcRenderer.on('renderer-player-next-album', (_, data) => cb(data));
 };
 
 const rendererPause = (cb: (data: PlayerData) => void) => {
@@ -128,6 +136,10 @@ const rendererPlayPause = (cb: (data: PlayerData) => void) => {
 
 const rendererPrevious = (cb: (data: PlayerData) => void) => {
     ipcRenderer.on('renderer-player-previous', (_, data) => cb(data));
+};
+
+const rendererPreviousAlbum = (cb: (data: PlayerData) => void) => {
+    ipcRenderer.on('renderer-player-previous-album', (_, data) => cb(data));
 };
 
 const rendererStop = (cb: (data: PlayerData) => void) => {
@@ -211,17 +223,20 @@ export const mpvPlayerListener = {
     rendererError,
     rendererMpvReconnect,
     rendererNext,
+    rendererNextAlbum,
     rendererPause,
     rendererPlay,
     rendererPlayerFallback,
     rendererPlayPause,
     rendererPrevious,
+    rendererPreviousAlbum,
     rendererQuit,
     rendererSkipBackward,
     rendererSkipForward,
     rendererStop,
     rendererToggleRepeat,
     rendererToggleShuffle,
+    rendererTrackEnded,
     rendererVolumeDown,
     rendererVolumeMute,
     rendererVolumeUp,

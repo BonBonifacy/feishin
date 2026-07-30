@@ -9,7 +9,9 @@ import styles from './lyrics-search-form.module.css';
 
 import i18n from '/@/i18n/i18n';
 import { lyricsQueries } from '/@/renderer/features/lyrics/api/lyrics-api';
+import { lyricsHasWordCues } from '/@/renderer/features/lyrics/api/lyrics-utils';
 import { openLyricsExportModal } from '/@/renderer/features/lyrics/components/lyrics-export-form';
+import { SynchronizedKaraokeLyrics } from '/@/renderer/features/lyrics/synchronized-karaoke-lyrics';
 import {
     SynchronizedLyrics,
     SynchronizedLyricsProps,
@@ -244,7 +246,6 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                 {selectedResult && (
                     <Stack style={{ flex: 1, height: '100%', minHeight: 0, overflow: 'hidden' }}>
                         <ScrollArea
-                            className={styles['lyrics-preview']}
                             style={{
                                 height: '100%',
                                 paddingRight: '1rem',
@@ -252,25 +253,41 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                         >
                             {isPreviewLoading ? (
                                 <Spinner container />
-                            ) : previewData ? (
                                 <div
                                     className={styles['lyrics-content-wrapper']}
                                     style={{ width: '100%' }}
                                 >
                                     {Array.isArray(previewData) ? (
-                                        <SynchronizedLyrics
-                                            key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
-                                            style={{ padding: 0 }}
-                                            {...({
-                                                artist: selectedResult.artist,
-                                                lyrics: previewData,
-                                                name: selectedResult.name,
-                                                remote: true,
-                                                source: selectedResult.source,
-                                            } as SynchronizedLyricsProps)}
-                                        />
+                                        lyricsHasWordCues(previewData) ? (
+                                            <SynchronizedKaraokeLyrics
+                                                preview
+                                                key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
+                                                style={{ padding: 0 }}
+                                                {...({
+                                                    artist: selectedResult.artist,
+                                                    lyrics: previewData,
+                                                    name: selectedResult.name,
+                                                    remote: true,
+                                                    source: selectedResult.source,
+                                                } as SynchronizedLyricsProps)}
+                                            />
+                                        ) : (
+                                            <SynchronizedLyrics
+                                                preview
+                                                key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
+                                                style={{ padding: 0 }}
+                                                {...({
+                                                    artist: selectedResult.artist,
+                                                    lyrics: previewData,
+                                                    name: selectedResult.name,
+                                                    remote: true,
+                                                    source: selectedResult.source,
+                                                } as SynchronizedLyricsProps)}
+                                            />
+                                        )
                                     ) : (
                                         <UnsynchronizedLyrics
+                                            preview
                                             {...({
                                                 artist: selectedResult.artist,
                                                 lyrics: previewData,

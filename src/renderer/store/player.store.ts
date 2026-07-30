@@ -44,19 +44,16 @@ interface Actions {
     getCurrentSong: () => QueueSong | undefined;
     getPlayerData: () => PlayerData;
     getQueue: (groupBy?: QueueGroupingProperty) => GroupedQueue;
-    getQueueOrder: () => {
-        groups: { count: number; name: string }[];
-        items: QueueSong[];
-    };
+    getQueueOrder: () => GroupedQueue;
     increaseVolume: (value: number) => void;
     isFirstTrackInQueue: () => boolean;
     isLastTrackInQueue: () => boolean;
     mediaAutoNext: () => PlayerData;
-    mediaNext: () => void;
+    mediaNext: (toNextAlbum: boolean) => void;
     mediaPause: () => void;
     mediaPlay: (id?: string) => void;
     mediaPlayByIndex: (index: number) => void;
-    mediaPrevious: () => void;
+    mediaPrevious: (toPreviousAlbum: boolean) => void;
     mediaSeekToTimestamp: (timestamp: number) => void;
     mediaSkipBackward: (offset?: number) => void;
     mediaSkipForward: (offset?: number) => void;
@@ -207,25 +204,25 @@ function calculateNextIndex(
     currentIndex: number,
     queueLength: number,
     repeat: PlayerRepeat,
-): { nextIndex: number; shouldPause: boolean } {
+): { nextIndex: number; shouldStop: boolean } {
     const isLastTrack = currentIndex === queueLength - 1;
 
     if (repeat === PlayerRepeat.ONE) {
         // Repeat one: stay on the same track
-        return { nextIndex: currentIndex, shouldPause: false };
+        return { nextIndex: currentIndex, shouldStop: false };
     } else if (repeat === PlayerRepeat.ALL) {
         // Repeat all: loop to first track if at the end
         if (isLastTrack) {
-            return { nextIndex: 0, shouldPause: false };
+            return { nextIndex: 0, shouldStop: false };
         } else {
-            return { nextIndex: currentIndex + 1, shouldPause: false };
+            return { nextIndex: currentIndex + 1, shouldStop: false };
         }
     } else {
-        // Repeat none: move to next track, or pause if at the end
+        // Repeat none: move to next track, or stop if at the end
         if (isLastTrack) {
-            return { nextIndex: currentIndex, shouldPause: true };
+            return { nextIndex: currentIndex, shouldStop: true };
         } else {
-            return { nextIndex: currentIndex + 1, shouldPause: false };
+            return { nextIndex: currentIndex + 1, shouldStop: false };
         }
     }
 }
@@ -290,6 +287,19 @@ function emitPlayerPlayEvent(
             });
         }
     }
+}
+
+function emitPlayerStop(get: () => PlayerState, reset: boolean): void {
+    const currentState = get();
+    const queue = currentState.getQueue();
+    const currentIndex = currentState.player.index;
+    const currentSong = queue.items[currentIndex];
+
+    eventEmitter.emit('PLAYER_STOP', {
+        id: currentSong?._uniqueId,
+        index: currentIndex !== undefined && currentIndex >= 0 ? currentIndex : undefined,
+        reset,
+    });
 }
 
 // Helper function to find shuffled position for a given queue index
@@ -921,11 +931,12 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                         ? stateSnapshot.queue.shuffled.length
                         : queue.items.length;
 
-                    const { nextIndex: nextPlaybackIndex, shouldPause } = calculateNextIndex(
+                    const { nextIndex: nextPlaybackIndex, shouldStop } = calculateNextIndex(
                         currentIndex,
                         playbackLength,
                         repeat,
                     );
+
                     const isRepeatOneSameTrack =
                         repeat === PlayerRepeat.ONE && nextPlaybackIndex === currentIndex;
                     // Dual web players alternate for gapless/crossfade between tracks. Repeat-one
@@ -937,9 +948,12 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                           ? 2
                           : 1;
                     const pauseOnNext = player.pauseOnNextSongEnd;
-                    const newStatus =
-                        shouldPause || pauseOnNext ? PlayerStatus.PAUSED : PlayerStatus.PLAYING;
-                    const shouldKeepCurrentPlayer = newStatus === PlayerStatus.PAUSED;
+                    const newStatus = shouldStop
+                        ? PlayerStatus.STOPPED
+                        : pauseOnNext
+                          ? PlayerStatus.PAUSED
+                          : PlayerStatus.PLAYING;
+                    const shouldKeepCurrentPlayer = newStatus !== PlayerStatus.PLAYING;
                     const shouldSwapPlayer = !isRepeatOneSameTrack && !shouldKeepCurrentPlayer;
 
                     set((state) => {
@@ -948,10 +962,18 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                         setTimestampStore(0);
                         state.player.status = newStatus;
 
+                        if (shouldStop) {
+                            state.player.seekToTimestamp = uniqueSeekToTimestamp(0);
+                        }
+
                         if (pauseOnNext) {
                             state.player.pauseOnNextSongEnd = false;
                         }
                     });
+
+                    if (shouldStop) {
+                        emitPlayerStop(get, true);
+                    }
 
                     if (repeat === PlayerRepeat.ONE && nextPlaybackIndex === currentIndex) {
                         eventEmitter.emit('PLAYER_REPEATED', {
@@ -1019,31 +1041,84 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                         status: newStatus,
                     };
                 },
-                mediaNext: () => {
+                mediaNext: (toNextAlbum) => {
                     const state = get();
                     const currentIndex = state.player.index;
                     const player = state.player;
+                    const repeat = player.repeat;
+                    const isShuffle = isShuffleEnabled(state);
                     const queue = state.getQueueOrder();
-                    const isLastTrack = currentIndex === queue.items.length - 1;
+                    const playbackLength = isShuffle
+                        ? state.queue.shuffled.length
+                        : queue.items.length;
 
-                    let nextIndex: number;
+                    const isStopped = state.player.status === PlayerStatus.STOPPED;
 
-                    if (player.repeat === PlayerRepeat.ALL && isLastTrack) {
-                        // Repeat all: wrap to first track when on last track
-                        nextIndex = 0;
-                    } else if (player.repeat === PlayerRepeat.NONE && isLastTrack) {
-                        // Repeat none: stay on last track if already there
-                        nextIndex = currentIndex;
-                    } else {
-                        // Otherwise, advance to next track (including repeat ONE for manual navigation)
-                        // When shuffle is enabled, currentIndex is already the position in the shuffled array
-                        nextIndex = Math.min(queue.items.length - 1, currentIndex + 1);
+                    if (repeat === PlayerRepeat.ONE) {
+                        // Manual next while repeat-one is active should still advance in the queue.
+                        const nextIndex = Math.min(playbackLength - 1, currentIndex + 1);
+
+                        set((state) => {
+                            state.player.index = nextIndex;
+                            state.player.playerNum = 1;
+                            setTimestampStore(0);
+
+                            if (isStopped) {
+                                state.player.status = PlayerStatus.PLAYING;
+                            }
+                        });
+
+                        eventEmitter.emit('MEDIA_NEXT', {
+                            currentIndex,
+                            nextIndex,
+                        });
+                        return;
+                    }
+
+                    const nextIndexProps = calculateNextIndex(currentIndex, playbackLength, repeat);
+                    let { nextIndex } = nextIndexProps;
+                    const { shouldStop } = nextIndexProps;
+
+                    if (toNextAlbum && !shouldStop) {
+                        const currentItem = queue.items[currentIndex];
+                        const [start, end] = findLastAlbumRange(queue.items);
+                        const isOnLastAlbum = start <= currentIndex && currentIndex <= end;
+                        if (isOnLastAlbum) {
+                            const nextIndexWithNextAlbum = queue.items.findIndex(
+                                (i) => i.albumId !== currentItem.albumId,
+                            );
+
+                            nextIndex = nextIndexWithNextAlbum;
+                        } else {
+                            const queueStartingFromCurrent = queue.items.slice(currentIndex);
+                            const nextIndexWithNextAlbum = queueStartingFromCurrent.findIndex(
+                                (i) => i.albumId !== currentItem.albumId,
+                            );
+                            nextIndex =
+                                nextIndexWithNextAlbum +
+                                (queue.items.length - queueStartingFromCurrent.length);
+                        }
+                    }
+
+                    if (shouldStop) {
+                        set((state) => {
+                            state.player.status = PlayerStatus.STOPPED;
+                            state.player.playerNum = 1;
+                            setTimestampStore(0);
+                            state.player.seekToTimestamp = uniqueSeekToTimestamp(0);
+                        });
+                        emitPlayerStop(get, true);
+                        return;
                     }
 
                     set((state) => {
                         state.player.index = nextIndex;
                         state.player.playerNum = 1;
                         setTimestampStore(0);
+
+                        if (isStopped) {
+                            state.player.status = PlayerStatus.PLAYING;
+                        }
                     });
 
                     eventEmitter.emit('MEDIA_NEXT', {
@@ -1145,7 +1220,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                         });
                     }
                 },
-                mediaPrevious: () => {
+                mediaPrevious: (toPreviousAlbum) => {
                     const currentIndex = get().player.index;
                     const player = get().player;
                     const queue = get().getQueueOrder();
@@ -1168,15 +1243,27 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                     } else if (player.repeat === PlayerRepeat.NONE && isFirstTrack) {
                         // Repeat none: stay on first track if already there
                         previousIndex = currentIndex;
+                    } else if (toPreviousAlbum) {
+                        previousIndex = Math.max(
+                            0,
+                            findIndexWithPreviousAlbum(queue.items, currentIndex),
+                        );
                     } else {
                         // Otherwise, go to previous track
                         previousIndex = Math.max(0, currentIndex - 1);
                     }
 
+                    // Same Chromium Media Session pitfall as mediaNext: a STOPPED→new-src
+                    // transition without PLAYING drops OS media-key routing.
+                    const resumeFromStopped = get().player.status === PlayerStatus.STOPPED;
+
                     set((state) => {
                         state.player.index = previousIndex;
                         state.player.playerNum = 1;
                         setTimestampStore(0);
+                        if (resumeFromStopped) {
+                            state.player.status = PlayerStatus.PLAYING;
+                        }
                     });
 
                     eventEmitter.emit('MEDIA_PREV', {
@@ -1242,19 +1329,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                         }
                     });
 
-                    const currentState = get();
-                    const queue = currentState.getQueue();
-                    const currentIndex = currentState.player.index;
-                    const currentSong = queue.items[currentIndex];
-
-                    eventEmitter.emit('PLAYER_STOP', {
-                        id: currentSong?._uniqueId,
-                        index:
-                            currentIndex !== undefined && currentIndex >= 0
-                                ? currentIndex
-                                : undefined,
-                        reset,
-                    });
+                    emitPlayerStop(get, reset);
                 },
                 mediaToggleMute: () => {
                     set((state) => {
@@ -1262,6 +1337,11 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                     });
                 },
                 mediaTogglePlayPause: () => {
+                    // Restarting from STOPPED (e.g. end of queue) needs a full play
+                    // event so engines like mpv can reload the current track — play()
+                    // alone is a no-op when mpv's playlist-pos is -1.
+                    const wasStopped = get().player.status === PlayerStatus.STOPPED;
+
                     set((state) => {
                         if (state.player.status === PlayerStatus.PLAYING) {
                             state.player.status = PlayerStatus.PAUSED;
@@ -1269,6 +1349,10 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                             state.player.status = PlayerStatus.PLAYING;
                         }
                     });
+
+                    if (wasStopped) {
+                        emitPlayerPlayEvent(undefined, set, get);
+                    }
                 },
                 moveSelectedTo: (items: QueueSong[], uniqueId: string, edge: 'bottom' | 'top') => {
                     const itemUniqueIds = items.map((item) => item._uniqueId);
@@ -2214,6 +2298,47 @@ function cleanupOrphanedSongs(state: any): boolean {
     }
 
     return hasOrphans;
+}
+
+function findIndexWithPreviousAlbum(queueItems: QueueSong[], currentIndex: number) {
+    const queueBeforeCurrent = queueItems.slice(0, currentIndex);
+    const currentItem = queueItems[currentIndex];
+
+    const previousAlbumIdInQueue = queueBeforeCurrent.findLast(
+        (i) => i.albumId !== currentItem.albumId,
+    )?.albumId;
+
+    let prevIndex = -1;
+
+    if (previousAlbumIdInQueue) {
+        for (let index = queueBeforeCurrent.length - 1; index > -1; index--) {
+            const element = queueBeforeCurrent[index];
+            if (element.albumId === previousAlbumIdInQueue) {
+                prevIndex = index;
+            }
+            if (prevIndex > -1 && element.albumId !== previousAlbumIdInQueue) {
+                break;
+            }
+        }
+    }
+
+    return prevIndex;
+}
+
+function findLastAlbumRange(queueItems: QueueSong[]) {
+    const lastAlbumId = queueItems.at(-1)?.albumId;
+    const rangeEnd = queueItems.length - 1;
+    let rangeStart = rangeEnd;
+
+    for (let index = rangeEnd; index > -1; index--) {
+        const element = queueItems[index];
+        rangeStart = index;
+        if (element.albumId !== lastAlbumId) {
+            break;
+        }
+    }
+
+    return [rangeStart + 1, rangeEnd];
 }
 
 function parseUniqueSeekToTimestamp(timestamp: string) {

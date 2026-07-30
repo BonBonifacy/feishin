@@ -956,7 +956,10 @@ export const JellyfinController: InternalControllerEndpoint = {
             return res.body.Lyrics.map((lyric) => lyric.Text).join('\n');
         }
 
-        return res.body.Lyrics.map((lyric) => [lyric.Start! / 1e4, lyric.Text]);
+        return res.body.Lyrics.map((lyric) => ({
+            startMs: lyric.Start! / 1e4,
+            text: lyric.Text,
+        }));
     },
     getMusicFolderList: async (args) => {
         const { apiClientProps } = args;
@@ -1158,6 +1161,34 @@ export const JellyfinController: InternalControllerEndpoint = {
         };
     },
     getRoles: async () => [],
+    getScanStatus: async (args) => {
+        const { apiClientProps } = args;
+
+        const res = await jfApiClient(apiClientProps).getScheduledTasks();
+
+        if (res.status !== 200) {
+            throw new Error('Failed to get scan status');
+        }
+
+        const task =
+            res.body.find((t) => t.Key === 'RefreshLibrary') ||
+            res.body.find((t) => t.Name === 'Scan Media Library');
+
+        if (!task) {
+            return {
+                count: 0,
+                folderCount: 0,
+                scanning: false,
+            };
+        }
+
+        return {
+            count: 0,
+            folderCount: 0,
+            lastScan: task.LastExecutionResult?.EndTimeUtc ?? undefined,
+            scanning: task.State === 'Running' || task.State === 'Cancelling',
+        };
+    },
     getServerInfo: async (args) => {
         const { apiClientProps } = args;
 
@@ -1552,6 +1583,21 @@ export const JellyfinController: InternalControllerEndpoint = {
         if (res.status !== 204) {
             throw new Error('Failed to move item in playlist');
         }
+    },
+    refreshItems: async (args) => {
+        const { apiClientProps, query } = args;
+
+        await Promise.all(
+            query.ids.map((id) =>
+                jfApiClient(apiClientProps).refreshItem({
+                    body: null,
+                    params: { id },
+                    query: { MetadataRefreshMode: 'FullRefresh' },
+                }),
+            ),
+        );
+
+        return null;
     },
     removeFromPlaylist: async (args) => {
         const { apiClientProps, query } = args;
