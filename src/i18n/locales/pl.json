@@ -323,7 +323,9 @@
         "explicitStatus": "$t(common.explicitStatus)",
         "sortName": "Sortowanie po nazwie",
         "matchAnd": "I",
-        "matchOr": "Lub"
+        "matchOr": "Lub",
+        "date": "Data",
+        "year": "Rok"
     },
     "form": {
         "deletePlaylist": {
@@ -398,7 +400,9 @@
             "createFailed": "Nie udało się utworzyć linku do udostępniania (czy udostępnianie jest włączone?)",
             "expireInvalid": "Ustawiony czas wygaśnięcia musi być w przyszłości",
             "copyToClipboard": "Skopiuj do schowka: Ctrl+C, enter",
-            "successMustClick": "Udostępnianie utworzone pomyślnie, kliknij tutaj żeby otworzyć"
+            "successMustClick": "Udostępnianie utworzone pomyślnie, kliknij tutaj żeby otworzyć",
+            "setExpiration_description": "Pozostaw puste, aby użyć domyślnego wygaśnięcia serwera",
+            "setExpiration_serverDefault": "Domyślne serwera"
         },
         "privateMode": {
             "enabled": "Tryb prywatny włączony, status odtwarzania jest ukryty przed usługami zewnętrznymi",
@@ -445,6 +449,10 @@
         },
         "createPrefilledPlaylist": {
             "title": "Utwórz $t(entity.playlist, {\"count\": 1}) z wybranych piosenek"
+        },
+        "queueChangeConfirmation": {
+            "title": "Wyczyścić aktualną kolejkę?",
+            "description": "To usunie wszystkie elementy z aktualnej kolejki."
         }
     },
     "page": {
@@ -469,7 +477,21 @@
                 "lyricPaddingLeft": "Odstęp tekstu z lewej (%)",
                 "lyricPaddingRight": "Odstęp tekstu z prawej (%)",
                 "lyricFollowScrollAlignment": "Wyrównywanie tekstu",
-                "lyricLineLeadTime": "Czas przed linijką (ms)"
+                "lyricLineLeadTime": "Czas przed linijką (ms)",
+                "followCurrentLyric_description": "Automatycznie przewijaj, aby utrzymać aktywny tekst na widoku",
+                "showLyricMatch_description": "Pokaż nazwę piosenki i wykonawcę dopasowanego tekstu",
+                "showLyricProvider_description": "Pokaż która usługa dostarczyła aktualny tekst",
+                "lyricFollowScrollAlignment_description": "Pionowa pozycja aktywnej linijki podczas śledzenia",
+                "lyricAlignment_description": "Poziome ułożenie tekstu",
+                "lyricGapSynchronized_description": "Pionowy odstęp pomiędzy zsynchronizowanymi linijkami tekstu",
+                "lyricGapUnsynchronized_description": "Pionowy odstęp pomiędzy niezsynchronizowanymi linijkami tekstu",
+                "lyricLineLeadTime_description": "Przesuń aktywną linijkę tyle milisekund przed jej znacznikiem czasu",
+                "lyricPaddingLeft_description": "Odstęp z lewej strony jako procent miejsca tekstu",
+                "lyricPaddingRight_description": "Odstęp z prawej strony jako procent miejsca tekstu",
+                "lyricSizeSynchronized_description": "Rozmiar czcionki dla zsynchronizowanego (czasowego) tekstu",
+                "lyricSizeUnsynchronized_description": "Rozmiar czcionki dla niezsynchronizowanego (zwykłego) tekstu",
+                "lyricOpacityNonActive_description": "Przeźroczystość linijek tekstu które nie są aktualnie aktywne",
+                "lyricScaleNonActive_description": "Skala linijek tekstu które nie są aktualnie aktywne"
             },
             "upNext": "Następne",
             "lyrics": "Tekst",
@@ -498,7 +520,8 @@
             "noMusicFolder": "Nie wybrano folderu muzyki",
             "multipleMusicFolders": "Wybrano {{count}} folderów muzyki",
             "commandPalette": "Otwórz paletę komend",
-            "logout": "Wyloguj"
+            "logout": "Wyloguj",
+            "rescanLibrary": "Przeskanuj bibliotekę ponownie"
         },
         "contextMenu": {
             "addToPlaylist": "$t(action.addToPlaylist)",
@@ -597,7 +620,9 @@
             "discord": "Discord",
             "playerFilters": "Filtry odtwarzacza",
             "logger": "Logger",
-            "lyricsDisplay": "Wyświetlanie tekstu"
+            "lyricsDisplay": "Wyświetlanie tekstu",
+            "lyricsTranslation": "Tłumaczenie tekstu",
+            "sharing": "Udostępnianie"
         },
         "trackList": {
             "title": "$t(entity.track, {\"count\": 2})",
@@ -808,7 +833,7 @@
         "fontType": "Typ czcionki",
         "applicationHotkeys": "Skróty klawiszowe aplikacji",
         "hotkey_playbackNext": "Następny utwór",
-        "lyricFetch_description": "Pobierz teksty z rozmaitych źródeł internetowych",
+        "lyricFetch_description": "Pobierz teksty z wybranych usług",
         "lyricFetchProvider_description": "Wybierz dostawców od których pobierane będą teksty",
         "globalMediaHotkeys_description": "Włącz lub wyłącz używanie systemowych skrótów klawiszowych do kontroli odtwarzania",
         "customFontPath": "Niestandardowa ścieżka czcionki",
@@ -925,7 +950,7 @@
         "transcode_description": "Włącza transkodowanie na inne formaty",
         "transcodeBitrate": "Bitrate do transkodowania",
         "translationApiProvider": "Usługodawca do api tłumaczeń",
-        "translationApiProvider_description": "Wybór usługodawcy do API tłumaczeń",
+        "translationApiProvider_description": "Wybiera usługę API używaną do tłumaczeń",
         "translationApiKey": "Klucz API do tłumaczeń",
         "transcodeFormat_description": "Wybiera format do transkodowania. zostaw pusty aby serwer wybrał format",
         "translationApiKey_description": "Klucz API do tłumaczenia (obsługuje tylko globalny endpoint)",
@@ -950,7 +975,7 @@
         "contextMenu": "Konfiguracja menu kontekstowego (pod prawym przyciskiem myszy)",
         "transcodeBitrate_description": "Wybiera bitrate do transkodowania. 0 pozwala wybrać to serwerowi",
         "transcodeFormat": "Format do transkodowania",
-        "translationTargetLanguage_description": "Język do którego będzie tłumaczona treść",
+        "translationTargetLanguage_description": "Ustawia docelowy język używany do tłumaczenia automatycznego",
         "trayEnabled": "Pokazuj w zasobniku",
         "webAudio": "Używaj web audio",
         "homeFeature_description": "Ustawienie powoduje to czy wyświetlana jest karuzela z polecanymi utworami na stronie głównej",
@@ -1150,7 +1175,7 @@
         "autoDJ_songStrategy": "Tryb wyboru piosenek",
         "autoDJ_strategy_option_library_random": "Losowo",
         "autoDJ_strategy_option_similar": "Podobne",
-        "enableFurigana_description": "Wyświetlaj pomoce wymowy (furigana) nad tekstami Japońskimi kanji.",
+        "enableFurigana_description": "Wyświetlaj pomoce wymowy (furigana) nad tekstami Japońskimi kanji",
         "enableFurigana": "Włącz generowanie furigana",
         "equalizer_descriptionMpv": "Equalizer parametryczny przez FFmpeg lavfi (MPV)",
         "equalizer_descriptionWebAudio": "Parametryczny equalizer przez API Web Audio",
@@ -1186,7 +1211,7 @@
         "compressorSavePreset_description": "Zapisz aktualne ustawienia kompresora jako nazwany zestaw ustawień wstępnych",
         "compressorThreshold_description": "Poziom sygnału nad którym rozpoczyna się kompresja.",
         "compressorThreshold": "Próg",
-        "enableRomaji_description": "Wyświetlaj linijkę z wymową romaji pod japońskim tekstem.",
+        "enableRomaji_description": "Wyświetlaj linijkę z wymową romaji pod japońskim tekstem",
         "enableRomaji": "Włącz generowanie romaji",
         "windowBarTrackinfo": "Informacje o utworze w tytule okna",
         "windowBarTrackinfo_description": "Wyświetlaj tytuł, wykonawcę, pozycję w kolejce i stan Odtwarzania/Wstrzymania w tytule okna.",
@@ -1205,7 +1230,19 @@
         "showFavorites": "Pokaż polubienie",
         "showFavorites_description": "Steruje tym czy przycisk polubienia (serce) jest pokazywany w interfejsie",
         "showQueueInSidebar_description": "Panel zostanie dodany do paska bocznego odtwarzacza który wyświetla kolejkę odtwarzania",
-        "showQueueInSidebar": "Pokaż kolejkę odtwarzania w pasku bocznym"
+        "showQueueInSidebar": "Pokaż kolejkę odtwarzania w pasku bocznym",
+        "customThemeErrors_description": "Te pliki motywu nie mogły być załadowane.",
+        "customThemeErrors": "Błędy",
+        "customThemeWarnings_description": "Te motywy zostały załadowane, ale niektóre wartości były nieprawidłowe i zostały zignorowane.",
+        "customThemeWarnings": "Ostrzeżenia",
+        "customThemes_description": "Upuść pliki motywów .json do tego folderu, aby dodać niestandardowe motywy. Są one wczytywane automatycznie kiedy zmienisz, dodasz lub usuniesz plik.",
+        "customThemes": "Niestandardowe motywy",
+        "confirmQueueChanges": "Potwierdź zmiany w kolejce",
+        "confirmQueueChanges_description": "Pytaj o potwierdzenie przed wyczyszczeniem aktualnej kolejki",
+        "shareExpiration_description": "Jak daleko w przyszłości będą domyślnie wygasać nowe linki udostępniania. Wyczyść datę w oknie udostępniania, aby użyć domyślnego czasu z serwera",
+        "shareExpiration": "Domyślne wygasanie udostępniania",
+        "shareExpirationUseServerDefault_description": "Pomiń dodawanie wygaśnięcia podczas tworzenia udostępnień, aby serwer mógł zastosować swoje skonfigurowane domyślne wygasanie (np. Navidrome DefaultShareExpiration)",
+        "shareExpirationUseServerDefault": "Używaj domyślnego wygasania serwera"
     },
     "table": {
         "config": {
@@ -1288,7 +1325,9 @@
                 "sampleRate": "$t(common.sampleRate)",
                 "composer": "Kompozytor",
                 "titleArtist": "$t(common.title) (wykonawca)",
-                "albumGroup": "Grupa albumu"
+                "albumGroup": "Grupa albumu",
+                "date": "Data",
+                "releaseYear": "Rok wydania"
             }
         },
         "column": {
@@ -1298,7 +1337,7 @@
             "favorite": "Ulubione",
             "playCount": "Odtwarzane",
             "albumCount": "Albumy",
-            "releaseYear": "Rok",
+            "releaseYear": "Rok wydania",
             "lastPlayed": "Ostatnio odtwarzane",
             "biography": "Biografia",
             "releaseDate": "Data premiery",
@@ -1318,7 +1357,9 @@
             "codec": "Kodek",
             "owner": "Właściciel",
             "bitDepth": "Głębia bitowa",
-            "sampleRate": "Częstotliwość próbkowania"
+            "sampleRate": "Częstotliwość próbkowania",
+            "date": "Data",
+            "year": "Rok"
         }
     },
     "queryBuilder": {
@@ -1380,7 +1421,14 @@
         "minuteShort": "Min",
         "secondShort": "Sek",
         "hourShort": "Godz",
-        "dayShort": "Dzień"
+        "dayShort": "d",
+        "secondLong": "Sekunda",
+        "minuteLong": "Minuta",
+        "hourLong": "Godzina",
+        "dayLong": "Dzień",
+        "weekLong": "Tydzień",
+        "monthLong": "Miesiąc",
+        "yearLong": "Rok"
     },
     "visualizer": {
         "visualizerType": "Typ Wizualizacji",
