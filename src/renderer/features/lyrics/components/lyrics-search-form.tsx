@@ -253,6 +253,7 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                         >
                             {isPreviewLoading ? (
                                 <Spinner container />
+                            ) : previewData ? (
                                 <div
                                     className={styles['lyrics-content-wrapper']}
                                     style={{ width: '100%' }}

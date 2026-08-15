@@ -98,7 +98,11 @@ export const getLineEndMs = (line: SynchronizedLyricLine): number => {
 };
 
 export const lyricsHasWordCues = (lyrics: SynchronizedLyrics): boolean =>
-    lyrics.some((line) => line.cueLines?.some((cueLine) => cueLine.words.length > 0));
+    lyrics.some(
+        (line) =>
+            line.cueLines?.some((cueLine) => cueLine.words.length > 0) ||
+            (typeof line.text === 'string' && line.text.includes('lyric-word')),
+    );
 
 export const findOverlayLineMatchByTime = (
     overlayLyrics: null | SynchronizedLyrics | undefined,

@@ -524,16 +524,19 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
                                 initial={{ opacity: 0 }}
                                 transition={{ duration: 0.5 }}
                             >
-                                {synced && syncedLyricsProps ? (
-                                    isKaraoke ? (
-                                        <SynchronizedKaraokeLyrics
-                                            key={currentSong?.id}
-                                            {...syncedLyricsProps}
-                                            agents={selectedAgents}
-                                        />
-                                    ) : (
-                                        <SynchronizedLyrics key={currentSong?.id} {...syncedLyricsProps} />
-                                    )
+                                {synced ? (
+                                    <SynchronizedLyrics
+                                        key={currentSong?.id}
+                                        {...(displayLyrics as SynchronizedLyricsProps)}
+                                        offsetMs={displayOffsetMs}
+                                        romajiLyrics={
+                                            enableRomaji
+                                                ? (romajiConvertedLyrics as SynchronizedLyricsProps['romajiLyrics'])
+                                                : null
+                                        }
+                                        settingsKey={settingsKey}
+                                        translatedLyrics={showTranslation ? translatedLyrics : null}
+                                    />
                                 ) : (
                                     <UnsynchronizedLyrics
                                         {...(displayLyrics as UnsynchronizedLyricsProps)}

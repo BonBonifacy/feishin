@@ -48,21 +48,30 @@ const alternateTimeExp = /\[(\d*),(\d*)]([^\n]+)(\n|$)/g;
 
 const parseWordTime = (timeStr: string) => {
     try {
-        const parts = timeStr.split(':');
-        if (parts.length < 2) return 0;
-        const minutes = parseInt(parts[0], 10);
-        const secParts = parts[1].split('.');
-        const seconds = parseInt(secParts[0], 10);
-        const msStr = secParts[1] || '0';
-        const milis = msStr.length === 3 ? parseInt(msStr, 10) : parseInt(msStr, 10) * 10;
-        return (minutes * 60 + seconds) * 1000 + milis;
+        const clean = timeStr.trim();
+        if (clean.includes(':')) {
+            const parts = clean.split(':');
+            if (parts.length < 2) return 0;
+            const minutes = parseInt(parts[0], 10);
+            const secParts = parts[1].split('.');
+            const seconds = parseInt(secParts[0], 10);
+            const msStr = secParts[1] || '0';
+            const milis = msStr.length === 3 ? parseInt(msStr, 10) : parseInt(msStr, 10) * 10;
+            return (minutes * 60 + seconds) * 1000 + milis;
+        }
+        if (clean.includes(',')) {
+            const parts = clean.split(',');
+            return parseInt(parts[0], 10);
+        }
+        return parseInt(clean, 10);
     } catch {
         return 0;
     }
 };
 
 const convertSyllableLyricsToHtml = (text: string) => {
-    const wordTimeExp = /([<[](?:\d{2,}):(?:\d{2})(?:\.(?:\d{2,3}))?[>\]])/g;
+    if (!text) return '';
+    const wordTimeExp = /([<\[\(](?:\d{1,}:?\d{2}(?:\.\d{1,3})?|\d+(?:,\d+)?)[>\]\)])/g;
     if (!wordTimeExp.test(text)) {
         return text;
     }
@@ -76,10 +85,14 @@ const convertSyllableLyricsToHtml = (text: string) => {
     for (const part of parts) {
         if (
             (part.startsWith('<') && part.endsWith('>')) ||
-            (part.startsWith('[') && part.endsWith(']'))
+            (part.startsWith('[') && part.endsWith(']')) ||
+            (part.startsWith('(') && part.endsWith(')'))
         ) {
             const timeStr = part.slice(1, -1);
-            currentWordTime = parseWordTime(timeStr);
+            const parsedTime = parseWordTime(timeStr);
+            if (!isNaN(parsedTime) && parsedTime >= 0) {
+                currentWordTime = parsedTime;
+            }
         } else if (part) {
             const timeAttr = currentWordTime !== -1 ? ` data-time="${currentWordTime}"` : '';
             html += `<span class="lyric-word"${timeAttr}>${part}</span>`;
@@ -90,26 +103,38 @@ const convertSyllableLyricsToHtml = (text: string) => {
 };
 
 export const mergeBilingualLyrics = (
-    lyrics: SynchronizedLyricsArray,
+    lyrics: SynchronizedLyrics,
     timeThresholdMs = 500,
-): SynchronizedLyricsArray => {
+): SynchronizedLyrics => {
     if (!lyrics || lyrics.length === 0) return lyrics;
 
-    const merged: SynchronizedLyricsArray = [];
+    const merged: SynchronizedLyrics = [];
 
-    for (const [time, text] of lyrics) {
+    for (const item of lyrics) {
+        const line = item as any;
+        const time = typeof line === 'object' && 'startMs' in line ? line.startMs : line[0];
+        const text = typeof line === 'object' && 'text' in line ? line.text : line[1];
         const trimmedText = text ? text.trim() : '';
         if (!trimmedText) continue;
 
         if (merged.length > 0) {
-            const last = merged[merged.length - 1];
-            if (Math.abs(time - last[0]) <= timeThresholdMs) {
-                last[1] = `${last[1]}_BREAK_${trimmedText}`;
+            const last = merged[merged.length - 1] as any;
+            const lastTime = typeof last === 'object' && 'startMs' in last ? last.startMs : last[0];
+            if (Math.abs(time - lastTime) <= timeThresholdMs) {
+                if (typeof last === 'object' && 'text' in last) {
+                    last.text = `${last.text}_BREAK_${trimmedText}`;
+                } else {
+                    last[1] = `${last[1]}_BREAK_${trimmedText}`;
+                }
                 continue;
             }
         }
 
-        merged.push([time, trimmedText]);
+        if (typeof line === 'object' && 'startMs' in line) {
+            merged.push({ ...line, text: trimmedText });
+        } else {
+            merged.push([time, trimmedText] as any);
+        }
     }
 
     return merged;
@@ -125,6 +150,8 @@ const formatLyrics = (lyrics: string) => {
         const seconds = parseInt(sec, 10);
         const milis = ms?.length === 3 ? parseInt(ms, 10) : parseInt(ms, 10) * 10;
 
+        const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
+
         formattedLyrics.push({ startMs: timeInMilis, text: convertSyllableLyricsToHtml(text.trim()) });
     }
 
@@ -137,8 +164,7 @@ const formatLyrics = (lyrics: string) => {
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
             .replaceAll(/\s\./g, '.');
-        formattedLyrics.push({ startMs: Number(timeInMilis), text: cleanText.trim() });
-    }
+        formattedLyrics.push({ startMs: Number(timeInMilis), text: convertSyllableLyricsToHtml(cleanText.trim()) });
     }
 
     if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
@@ -157,9 +183,20 @@ const formatLyricsResponse = (lyrics: LyricsResponse): LyricsResponse => {
         }
         return formatted;
     } else if (Array.isArray(lyrics)) {
-        const formatted = lyrics.map(
-            ([time, text]) => [time, convertSyllableLyricsToHtml(text.trim())] as [number, string],
-        );
+        const formatted = lyrics.map((item) => {
+            if (Array.isArray(item)) {
+                return {
+                    startMs: item[0],
+                    text: convertSyllableLyricsToHtml((item[1] ?? '').trim()),
+                };
+            } else if (item && typeof item === 'object') {
+                return {
+                    ...item,
+                    text: convertSyllableLyricsToHtml((item.text ?? '').trim()),
+                };
+            }
+            return item;
+        }) as any;
         return mergeBilingualLyrics(formatted);
     }
     return lyrics;

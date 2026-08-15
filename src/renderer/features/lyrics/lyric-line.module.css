@@ -53,6 +53,8 @@
         var(--active-color)
     );
     background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
     background-size: var(--progress, 0%) 100%;
     transition: background-size 0.05s linear;
 }

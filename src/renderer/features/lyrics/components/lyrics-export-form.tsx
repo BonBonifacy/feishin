@@ -54,9 +54,6 @@ ${contents}
         }
 
         return typeof lyrics.lyrics === 'string' ? lyrics.lyrics.replaceAll('_BREAK_', '\n') : lyrics.lyrics;
-        }
-
-        return lyrics.lyrics;
     }, [
         form.values.offsetMs,
         form.values.synced,
