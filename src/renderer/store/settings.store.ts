@@ -40,6 +40,7 @@ import {
     PlayerType,
     TableColumn,
 } from '/@/shared/types/types';
+import { IMAGE_PLACEHOLDER_PRIORITIES } from '/@/shared/utils/image-hash';
 
 const utils = isElectron() ? window.api.utils : null;
 
@@ -70,6 +71,7 @@ const deepMergeIntoState = <T extends Record<string, any>>(
 const HomeItemSchema = z.enum([
     'genres',
     'mostPlayed',
+    'playlists',
     'random',
     'recentlyAdded',
     'recentlyPlayed',
@@ -88,18 +90,21 @@ const AlbumGroupItemSchema = z.enum([
 ]);
 
 const PlayerItemSchema = z.enum([
+    'album',
+    'artist',
     'bit_depth',
     'bit_rate',
     'bpm',
-    'disc_number',
-    'sample_rate',
-    'track_number',
     'codec',
     'date',
-    'release_year',
-    'release_type',
-    'release_date',
+    'disc_number',
     'genres',
+    'release_date',
+    'release_type',
+    'release_year',
+    'sample_rate',
+    'title',
+    'track_number',
     'year',
 ]);
 
@@ -185,6 +190,8 @@ const DiscordLinkTypeSchema = z.enum(['last_fm', 'musicbrainz', 'musicbrainz_las
 const GenreTargetSchema = z.enum(['album', 'track']);
 
 const PlaylistTargetSchema = z.enum(['album', 'track']);
+
+const ScrobbleMinimumModeSchema = z.enum(['both', 'percentage', 'seconds']);
 
 const SideQueueTypeSchema = z.enum(['sideDrawerQueue', 'sideQueue']);
 const SideQueueLayoutSchema = z.enum(['horizontal', 'vertical']);
@@ -274,6 +281,7 @@ const TranscodingConfigSchema = z.object({
     bitrate: z.number().optional(),
     enabled: z.boolean(),
     format: z.string().optional(),
+    maxSampleRate: z.number().optional(),
 });
 
 const MpvSettingsSchema = z.object({
@@ -525,10 +533,12 @@ export const GeneralSettingsSchema = z.object({
     externalLinks: z.boolean(),
     followCurrentSong: z.boolean(),
     followSystemTheme: z.boolean(),
+    fullscreenAutoOpenTimeout: z.number().min(0).max(120),
     genreTarget: GenreTargetSchema,
     homeFeature: z.boolean(),
     homeFeatureStyle: z.nativeEnum(HomeFeatureStyle),
     homeItems: z.array(SortableItemSchema(HomeItemSchema)),
+    imagePlaceholderPriority: z.enum(IMAGE_PLACEHOLDER_PRIORITIES),
     imageRes: z.object({
         fullScreenPlayer: z.number(),
         header: z.number(),
@@ -563,6 +573,7 @@ export const GeneralSettingsSchema = z.object({
     showVisualizerInSidebar: z.boolean(),
     sidebarCollapsedNavigation: z.boolean(),
     sidebarCollapseShared: z.boolean(),
+    sidebarImageEnabled: z.boolean(),
     sidebarItems: z.array(SidebarItemTypeSchema),
     sidebarPanelOrder: z.array(SidebarPanelTypeSchema),
     sidebarPlaylistFolders: z.boolean(),
@@ -641,6 +652,7 @@ const LyricsSettingsSchema = z.object({
 
 const ScrobbleSettingsSchema = z.object({
     enabled: z.boolean(),
+    minimumMode: ScrobbleMinimumModeSchema,
     notify: z.boolean(),
     scrobbleAtDuration: z.number(),
     scrobbleAtPercentage: z.number(),
@@ -705,6 +717,8 @@ const PlaybackSettingsSchema = z.object({
     mpvExtraParameters: z.array(z.string()),
     mpvProperties: MpvSettingsSchema,
     preservePitch: z.boolean(),
+    previousLocalVolume: z.number().min(0).max(100).optional(),
+    previousPlayerType: z.nativeEnum(PlayerType).optional(),
     scrobble: ScrobbleSettingsSchema,
     transcode: TranscodingConfigSchema,
     type: z.nativeEnum(PlayerType),
@@ -805,6 +819,14 @@ export const getServerTagAutocompleteName = (source: string): null | string =>
 
 export const toServerTagAutocompleteSource = (tagName: string): string =>
     `${SERVER_TAG_AUTOCOMPLETE_PREFIX}${tagName}`;
+
+export const ScrobbleMinimumMode = {
+    BOTH: 'both',
+    PERCENTAGE: 'percentage',
+    SECONDS: 'seconds',
+} as const;
+
+export type ScrobbleMinimumMode = (typeof ScrobbleMinimumMode)[keyof typeof ScrobbleMinimumMode];
 
 /**
  * This schema is used for validation of the imported settings json
@@ -955,6 +977,7 @@ export enum GenreTarget {
 export enum HomeItem {
     GENRES = 'genres',
     MOST_PLAYED = 'mostPlayed',
+    PLAYLISTS = 'playlists',
     RANDOM = 'random',
     RECENTLY_ADDED = 'recentlyAdded',
     RECENTLY_PLAYED = 'recentlyPlayed',
@@ -967,6 +990,8 @@ export enum PlayerbarSliderType {
 }
 
 export enum PlayerItem {
+    ALBUM = 'album',
+    ARTIST = 'artist',
     BIT_DEPTH = 'bit_depth',
     BIT_RATE = 'bit_rate',
     BPM = 'bpm',
@@ -978,6 +1003,7 @@ export enum PlayerItem {
     RELEASE_TYPE = 'release_type',
     RELEASE_YEAR = 'release_year',
     SAMPLE_RATE = 'sample_rate',
+    TITLE = 'title',
     TRACK_NUMBER = 'track_number',
     YEAR = 'year',
 }
@@ -1072,6 +1098,18 @@ export type VersionedSettings = SettingsState & { version: number };
 export const playerItems: SortableItem<PlayerItem>[] = [
     {
         disabled: true,
+        id: PlayerItem.ALBUM,
+    },
+    {
+        disabled: true,
+        id: PlayerItem.ARTIST,
+    },
+    {
+        disabled: true,
+        id: PlayerItem.TITLE,
+    },
+    {
+        disabled: true,
         id: PlayerItem.BIT_DEPTH,
     },
     {
@@ -1083,7 +1121,7 @@ export const playerItems: SortableItem<PlayerItem>[] = [
         id: PlayerItem.BPM,
     },
     {
-        disabled: false,
+        disabled: true,
         id: PlayerItem.CODEC,
     },
     {
@@ -1107,7 +1145,7 @@ export const playerItems: SortableItem<PlayerItem>[] = [
         id: PlayerItem.RELEASE_TYPE,
     },
     {
-        disabled: false,
+        disabled: true,
         id: PlayerItem.RELEASE_YEAR,
     },
     {
@@ -1119,7 +1157,7 @@ export const playerItems: SortableItem<PlayerItem>[] = [
         id: PlayerItem.TRACK_NUMBER,
     },
     {
-        disabled: false,
+        disabled: true,
         id: PlayerItem.YEAR,
     },
 ];
@@ -1206,9 +1244,19 @@ export const sidebarItems: SidebarItemType[] = [
     },
 ];
 
-const homeItems = Object.values(HomeItem).map((item) => ({
+const defaultHomeItemOrder: HomeItem[] = [
+    HomeItem.GENRES,
+    HomeItem.RANDOM,
+    HomeItem.RECENTLY_ADDED,
+    HomeItem.RECENTLY_RELEASED,
+    HomeItem.RECENTLY_PLAYED,
+    HomeItem.MOST_PLAYED,
+    HomeItem.PLAYLISTS,
+];
+
+const homeItems = defaultHomeItemOrder.map((id) => ({
     disabled: false,
-    id: item,
+    id,
 }));
 
 const artistItems = Object.values(ArtistItem).map((item) => ({
@@ -1285,13 +1333,13 @@ const initialState: SettingsState = {
     general: {
         accent: 'rgb(53, 116, 252)',
         albumBackground: false,
-        albumBackgroundBlur: 3,
+        albumBackgroundBlur: 6,
         albumGroupImageSize: 0,
         albumGroupItems,
         albumGroupShowFavoriteRating: true,
         albumGroupVerticalLayout: true,
         artistBackground: true,
-        artistBackgroundBlur: 3,
+        artistBackgroundBlur: 6,
         artistItems,
         artistRadioCount: 20,
         artistReleaseTypeItems,
@@ -1309,10 +1357,12 @@ const initialState: SettingsState = {
         externalLinks: true,
         followCurrentSong: true,
         followSystemTheme: false,
+        fullscreenAutoOpenTimeout: 0,
         genreTarget: GenreTarget.TRACK,
         homeFeature: true,
         homeFeatureStyle: HomeFeatureStyle.SINGLE,
         homeItems,
+        imagePlaceholderPriority: 'thumbhash',
         imageRes: {
             fullScreenPlayer: 0,
             header: 300,
@@ -1359,6 +1409,7 @@ const initialState: SettingsState = {
         showVisualizerInSidebar: true,
         sidebarCollapsedNavigation: true,
         sidebarCollapseShared: false,
+        sidebarImageEnabled: true,
         sidebarItems,
         sidebarPanelOrder: ['queue', 'lyrics', 'visualizer'],
         sidebarPlaylistFolders: false,
@@ -1489,12 +1540,12 @@ const initialState: SettingsState = {
                     align: column.align,
                     autoSize: column.autoSize,
                     id: column.value,
-                    isEnabled: column.isEnabled,
+                    isEnabled: column.value === TableColumn.ROW_INDEX ? false : column.isEnabled,
                     pinned: column.pinned,
                     width: column.width,
                 })),
                 enableAlternateRowColors: false,
-                enableHeader: true,
+                enableHeader: false,
                 enableHorizontalBorders: false,
                 enableRowHoverHighlight: true,
                 enableVerticalBorders: false,
@@ -1992,7 +2043,7 @@ const initialState: SettingsState = {
         },
     },
     lyrics: {
-        alignment: 'center',
+        alignment: 'left',
         delayMs: 0,
         enableAutoTranslation: false,
         enableFurigana: false,
@@ -2003,8 +2054,8 @@ const initialState: SettingsState = {
         followScrollAlignment: 0,
         lineLeadTimeMs: 800,
         preferLocalLyrics: true,
-        showMatch: true,
-        showProvider: true,
+        showMatch: false,
+        showProvider: false,
         sources: [LyricSource.NETEASE, LyricSource.LRCLIB],
         translationApiKey: '',
         translationApiProvider: '',
@@ -2067,8 +2118,11 @@ const initialState: SettingsState = {
             replayGainPreampDB: 0,
         },
         preservePitch: true,
+        previousLocalVolume: undefined,
+        previousPlayerType: undefined,
         scrobble: {
             enabled: true,
+            minimumMode: ScrobbleMinimumMode.BOTH,
             notify: false,
             scrobbleAtDuration: 240,
             scrobbleAtPercentage: 75,
@@ -2159,7 +2213,7 @@ const initialState: SettingsState = {
             lineWidth: 1.9,
             loRes: false,
             lumiBars: false,
-            maxDecibels: -25,
+            maxDecibels: -15,
             maxFPS: 0,
             maxFreq: 22050,
             minDecibels: -85,
@@ -2870,10 +2924,17 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     }
                 }
 
+                if (version < 34) {
+                    state.general.homeItems.push({
+                        disabled: false,
+                        id: HomeItem.PLAYLISTS,
+                    });
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 33,
+            version: 34,
         },
     ),
 );
@@ -2976,6 +3037,9 @@ export const useAccent = () => useSettingsStore((state) => state.general.accent,
 export const useNativeAspectRatio = () =>
     useSettingsStore((state) => state.general.nativeAspectRatio, shallow);
 
+export const useImagePlaceholderPriority = () =>
+    useSettingsStore((state) => state.general.imagePlaceholderPriority);
+
 export const useButtonSize = () => useSettingsStore((state) => state.general.buttonSize, shallow);
 
 export const useSkipButtons = () => useSettingsStore((state) => state.general.skipButtons, shallow);
@@ -2995,6 +3059,12 @@ export const useVolumeWidth = () => useSettingsStore((state) => state.general.vo
 
 export const useFollowCurrentSong = () =>
     useSettingsStore((state) => state.general.followCurrentSong, shallow);
+
+export const useFullscreenAutoOpenTimeout = () =>
+    useSettingsStore((state) => state.general.fullscreenAutoOpenTimeout, shallow);
+
+export const useSidebarImageEnabled = () =>
+    useSettingsStore((state) => state.general.sidebarImageEnabled, shallow);
 
 export const useThemeSettings = () =>
     useSettingsStore(

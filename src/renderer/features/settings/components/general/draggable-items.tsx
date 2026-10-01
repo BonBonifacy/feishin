@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DraggableItem } from '/@/renderer/features/settings/components/general/draggable-item';
 import { SettingsOptions } from '/@/renderer/features/settings/components/settings-option';
-import { useSettingSearchContext } from '/@/renderer/features/settings/context/search-context';
+import { useSettingSearchStore } from '/@/renderer/features/settings/store/search.store';
 import { SortableItem } from '/@/renderer/store';
 import { Button } from '/@/shared/components/button/button';
 
@@ -13,7 +13,9 @@ export type DraggableItemsProps<K, T> = {
     description: string;
     itemLabels: Array<[K, string]>;
     items: T[];
+    nonReorderableItemIds?: K[];
     setItems: (items: T[]) => void;
+    showDescription?: boolean;
     title: string;
 };
 
@@ -46,11 +48,13 @@ export const DraggableItems = <K extends string, T extends SortableItem<K>>({
     description,
     itemLabels,
     items,
+    nonReorderableItemIds,
     setItems,
+    showDescription = true,
     title,
 }: DraggableItemsProps<K, T>) => {
     const { t } = useTranslation();
-    const keyword = useSettingSearchContext();
+    const { search: keyword } = useSettingSearchStore();
     const [open, setOpen] = useState(false);
 
     const translatedItemMap = useMemo(
@@ -92,6 +96,17 @@ export const DraggableItems = <K extends string, T extends SortableItem<K>>({
         );
     }, [description, keyword, title]);
 
+    const orderedItems = useMemo(() => {
+        if (!nonReorderableItemIds?.length) {
+            return localItems;
+        }
+
+        return [
+            ...localItems.filter((item) => nonReorderableItemIds.includes(item.id as K)),
+            ...localItems.filter((item) => !nonReorderableItemIds.includes(item.id as K)),
+        ];
+    }, [localItems, nonReorderableItemIds]);
+
     if (!shouldShow) {
         return null;
     }
@@ -127,6 +142,7 @@ export const DraggableItems = <K extends string, T extends SortableItem<K>>({
                     </>
                 }
                 description={descriptionText}
+                showDescription={showDescription}
                 title={titleText}
             />
             {open && (
@@ -136,9 +152,10 @@ export const DraggableItems = <K extends string, T extends SortableItem<K>>({
                     style={{ userSelect: 'none' }}
                     values={localItems}
                 >
-                    {localItems.map((item) => (
+                    {orderedItems.map((item) => (
                         <DraggableItem
                             handleChangeDisabled={handleChangeDisabled}
+                            isReorderable={!nonReorderableItemIds?.includes(item.id as K)}
                             item={item}
                             key={item.id}
                             value={translatedItemMap[item.id]}

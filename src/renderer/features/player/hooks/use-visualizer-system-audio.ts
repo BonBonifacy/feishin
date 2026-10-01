@@ -5,7 +5,7 @@ import i18n from '/@/i18n/i18n';
 import { useWebAudio } from '/@/renderer/features/player/hooks/use-webaudio';
 import { usePlaybackType } from '/@/renderer/store/settings.store';
 import { toast } from '/@/shared/components/toast/toast';
-import { PlayerType } from '/@/shared/types/types';
+import { PlayerType, WebAudio } from '/@/shared/types/types';
 
 export function useVisualizerSystemAudio(options: {
     onSystemAudioCaptureDenied?: () => void;
@@ -44,7 +44,18 @@ export function useVisualizerSystemAudio(options: {
             sourceRef.current = null;
         }
         const w = webAudioRef.current;
-        if (w?.visualizerInputs?.length && setWebAudio) {
+        if (!w || !setWebAudio) {
+            return;
+        }
+
+        if (isVisualizerOnlyContext(w)) {
+            void w.context.close().catch(() => {});
+            setWebAudio(undefined);
+            webAudioRef.current = undefined;
+            return;
+        }
+
+        if (w.visualizerInputs?.length) {
             const next = { ...w, visualizerInputs: undefined };
             setWebAudio(next);
             webAudioRef.current = next;
@@ -62,25 +73,20 @@ export function useVisualizerSystemAudio(options: {
             return;
         }
 
-        const w = webAudioRef.current;
-        if (!w?.context || w.context.state === 'closed') {
-            return;
-        }
-
         if (!setWebAudio) return;
+        if (connectInFlightRef.current) return;
 
         disconnect();
-
-        const wAfterDisconnect = webAudioRef.current;
-        if (!wAfterDisconnect?.context || wAfterDisconnect.context.state === 'closed') {
-            return;
-        }
-
         connectInFlightRef.current = true;
 
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({
-                audio: true,
+                audio: {
+                    autoGainControl: false,
+                    channelCount: 2,
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                },
                 video: isMacOS, // On macOS, getDisplayMedia requires video to be requested in order to capture system audio
             });
 
@@ -91,10 +97,17 @@ export function useVisualizerSystemAudio(options: {
                 return;
             }
 
-            const latest = webAudioRef.current;
+            let latest = webAudioRef.current;
             if (!latest?.context || latest.context.state === 'closed') {
-                stream.getTracks().forEach((t) => t.stop());
-                return;
+                if (!('AudioContext' in window)) {
+                    stream.getTracks().forEach((t) => t.stop());
+                    return;
+                }
+
+                const context = new AudioContext({ latencyHint: 'playback' });
+                latest = { context, dsp: null, gains: [] };
+                setWebAudio(latest);
+                webAudioRef.current = latest;
             }
 
             try {
@@ -136,10 +149,7 @@ export function useVisualizerSystemAudio(options: {
         }
 
         const w = webAudioRef.current;
-        if (!w?.context || w.context.state === 'closed') {
-            return;
-        }
-        if (w.visualizerInputs?.length) {
+        if (w?.visualizerInputs?.length) {
             return;
         }
         if (connectInFlightRef.current) {
@@ -153,4 +163,8 @@ export function useVisualizerSystemAudio(options: {
         webAudio?.context,
         webAudio?.visualizerInputs?.length,
     ]);
+}
+
+function isVisualizerOnlyContext(webAudio: WebAudio) {
+    return webAudio.gains.length === 0 && webAudio.dsp === null;
 }

@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { AnimatePresence, motion, Variants } from 'motion/react';
 import {
     CSSProperties,
@@ -8,47 +9,30 @@ import {
     useRef,
     useState,
 } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
 import styles from './full-screen-player.module.css';
 
 import { useItemImageUrl } from '/@/renderer/components/item-image/item-image';
-import { SONG_TABLE_COLUMNS } from '/@/renderer/components/item-list/item-table-list/default-columns';
 import { FullScreenPlayerImage } from '/@/renderer/features/player/components/full-screen-player-image';
-import { FullScreenPlayerQueue } from '/@/renderer/features/player/components/full-screen-player-queue';
+import {
+    FullScreenPlayerControls,
+    FullScreenPlayerQueue,
+} from '/@/renderer/features/player/components/full-screen-player-queue';
+import { SharedFullscreenPlayerSettings } from '/@/renderer/features/player/components/shared-full-screen-player-settings';
 import {
     useIsRadioActive,
     useRadioPlayer,
 } from '/@/renderer/features/radio/hooks/use-radio-player';
-import {
-    ListConfigMenu,
-    SONG_DISPLAY_TYPES,
-} from '/@/renderer/features/shared/components/list-config-menu';
 import { useFastAverageColor } from '/@/renderer/hooks';
-import { useHotkeys } from '/@/renderer/hooks/use-hotkeys';
 import {
     useFullScreenPlayerStore,
     useFullScreenPlayerStoreActions,
-    useLyricsDisplaySettings,
-    useLyricsSettings,
     usePlayerData,
     usePlayerSong,
-    useSettingsStore,
-    useSettingsStoreActions,
-    useWindowSettings,
 } from '/@/renderer/store';
-import { ActionIcon } from '/@/shared/components/action-icon/action-icon';
-import { Divider } from '/@/shared/components/divider/divider';
 import { Group } from '/@/shared/components/group/group';
-import { NumberInput } from '/@/shared/components/number-input/number-input';
-import { Option } from '/@/shared/components/option/option';
-import { Popover } from '/@/shared/components/popover/popover';
-import { SegmentedControl } from '/@/shared/components/segmented-control/segmented-control';
-import { Slider } from '/@/shared/components/slider/slider';
-import { Switch } from '/@/shared/components/switch/switch';
 import { LibraryItem } from '/@/shared/types/domain-types';
-import { ItemListKey, ListDisplayType, Platform } from '/@/shared/types/types';
 
 const mainBackground = 'var(--theme-colors-background)';
 
@@ -227,389 +211,46 @@ const BackgroundImageOverlay = memo(
 
 BackgroundImageOverlay.displayName = 'BackgroundImageOverlay';
 
-const Controls = () => {
-    const { t } = useTranslation();
-    const {
-        dynamicBackground,
-        dynamicImageBlur,
-        dynamicIsImage,
-        expanded,
-        opacity,
-        useImageAspectRatio,
-    } = useFullScreenPlayerStore();
-    const { setStore } = useFullScreenPlayerStoreActions();
-    const { setSettings } = useSettingsStoreActions();
-    const lyricsSettings = useLyricsSettings();
-    const displaySettings = useLyricsDisplaySettings('default');
-    const lyricConfig = { ...lyricsSettings, ...displaySettings };
+interface BackgroundOverlayProps {
+    dynamicBackground: boolean | undefined;
+    opacity: number;
+}
 
-    const handleToggleFullScreenPlayer = () => {
-        setStore({ expanded: !expanded, visualizerExpanded: false });
-    };
+const BackgroundOverlay = memo(({ dynamicBackground, opacity }: BackgroundOverlayProps) => {
+    if (!dynamicBackground) {
+        return null;
+    }
 
-    const handleLyricsSettings = (property: string, value: any) => {
-        const displayProperties = [
-            'fontSize',
-            'fontSizeUnsync',
-            'gap',
-            'gapUnsync',
-            'paddingLeft',
-            'paddingRight',
-        ];
-        if (displayProperties.includes(property)) {
-            const currentDisplay = useSettingsStore.getState().lyricsDisplay;
-            setSettings({
-                lyricsDisplay: {
-                    ...currentDisplay,
-                    default: {
-                        ...currentDisplay.default,
-                        [property]: value,
-                    },
-                },
-            });
-        } else {
-            setSettings({
-                lyrics: {
-                    ...useSettingsStore.getState().lyrics,
-                    [property]: value,
-                },
-            });
-        }
-    };
-
-    useHotkeys([['Escape', handleToggleFullScreenPlayer]]);
+    // Opacity is divided by 120 instead of 100, to prevent a complete black background at maximum opacity
+    const alpha = Math.min(1, Math.max(0, opacity / 120));
 
     return (
-        <Group
-            className={styles.controlsContainer}
-            gap="sm"
-            p="1rem"
-            pos="absolute"
-            style={{
-                background: `rgb(var(--theme-colors-background-transparent), ${opacity}%)`,
-                left: 0,
-                top: 0,
-            }}
-        >
-            <ActionIcon
-                icon="arrowDownS"
-                iconProps={{ size: 'lg' }}
-                onClick={handleToggleFullScreenPlayer}
-                tooltip={{ label: t('common.minimize') }}
-                variant="subtle"
-            />
-            <Popover position="bottom-start">
-                <Popover.Target>
-                    <ActionIcon
-                        icon="settings2"
-                        iconProps={{ size: 'lg' }}
-                        tooltip={{ label: t('common.configure') }}
-                        variant="subtle"
-                    />
-                </Popover.Target>
-                <Popover.Dropdown>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.dynamicBackground')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Switch
-                                defaultChecked={dynamicBackground}
-                                onChange={(e) =>
-                                    setStore({
-                                        dynamicBackground: e.target.checked,
-                                    })
-                                }
-                            />
-                        </Option.Control>
-                    </Option>
-                    {dynamicBackground && (
-                        <Option>
-                            <Option.Label>
-                                {t('page.fullscreenPlayer.config.dynamicIsImage')}
-                            </Option.Label>
-                            <Option.Control>
-                                <Switch
-                                    defaultChecked={dynamicIsImage}
-                                    onChange={(e) =>
-                                        setStore({
-                                            dynamicIsImage: e.target.checked,
-                                        })
-                                    }
-                                />
-                            </Option.Control>
-                        </Option>
-                    )}
-                    {dynamicBackground && dynamicIsImage && (
-                        <Option>
-                            <Option.Label>
-                                {t('page.fullscreenPlayer.config.dynamicImageBlur')}
-                            </Option.Label>
-                            <Option.Control>
-                                <Slider
-                                    defaultValue={dynamicImageBlur}
-                                    label={(e) => `${e} rem`}
-                                    max={6}
-                                    min={0}
-                                    onChangeEnd={(e) => setStore({ dynamicImageBlur: Number(e) })}
-                                    step={0.5}
-                                    w="100%"
-                                />
-                            </Option.Control>
-                        </Option>
-                    )}
-                    {dynamicBackground && (
-                        <Option>
-                            <Option.Label>{t('page.fullscreenPlayer.config.opacity')}</Option.Label>
-                            <Option.Control>
-                                <Slider
-                                    defaultValue={opacity}
-                                    label={(e) => `${e} %`}
-                                    max={100}
-                                    min={0}
-                                    onChangeEnd={(e) => setStore({ opacity: Number(e) })}
-                                    w="100%"
-                                />
-                            </Option.Control>
-                        </Option>
-                    )}
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.useImageAspectRatio')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Switch
-                                checked={useImageAspectRatio}
-                                onChange={(e) =>
-                                    setStore({
-                                        useImageAspectRatio: e.target.checked,
-                                    })
-                                }
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Divider my="sm" />
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.followCurrentLyric')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Switch
-                                checked={lyricConfig.follow}
-                                onChange={(e) =>
-                                    handleLyricsSettings('follow', e.currentTarget.checked)
-                                }
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.showLyricProvider')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Switch
-                                checked={lyricConfig.showProvider}
-                                onChange={(e) =>
-                                    handleLyricsSettings('showProvider', e.currentTarget.checked)
-                                }
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.showLyricMatch')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Switch
-                                checked={lyricConfig.showMatch}
-                                onChange={(e) =>
-                                    handleLyricsSettings('showMatch', e.currentTarget.checked)
-                                }
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>{t('page.fullscreenPlayer.config.lyricSize')}</Option.Label>
-                        <Option.Control>
-                            <Group w="100%" wrap="nowrap">
-                                <Slider
-                                    defaultValue={lyricConfig.fontSize}
-                                    label={(e) =>
-                                        `${t('page.fullscreenPlayer.config.synchronized')}: ${e}px`
-                                    }
-                                    max={72}
-                                    min={8}
-                                    onChangeEnd={(e) => handleLyricsSettings('fontSize', Number(e))}
-                                    w="100%"
-                                />
-                                <Slider
-                                    defaultValue={lyricConfig.fontSize}
-                                    label={(e) =>
-                                        `${t('page.fullscreenPlayer.config.unsynchronized')}: ${e}px`
-                                    }
-                                    max={72}
-                                    min={8}
-                                    onChangeEnd={(e) =>
-                                        handleLyricsSettings('fontSizeUnsync', Number(e))
-                                    }
-                                    w="100%"
-                                />
-                            </Group>
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>{t('page.fullscreenPlayer.config.lyricGap')}</Option.Label>
-                        <Option.Control>
-                            <Group w="100%" wrap="nowrap">
-                                <Slider
-                                    defaultValue={lyricConfig.gap}
-                                    label={(e) => `Synchronized: ${e}px`}
-                                    max={50}
-                                    min={0}
-                                    onChangeEnd={(e) => handleLyricsSettings('gap', Number(e))}
-                                    w="100%"
-                                />
-                                <Slider
-                                    defaultValue={lyricConfig.gap}
-                                    label={(e) => `Unsynchronized: ${e}px`}
-                                    max={50}
-                                    min={0}
-                                    onChangeEnd={(e) =>
-                                        handleLyricsSettings('gapUnsync', Number(e))
-                                    }
-                                    w="100%"
-                                />
-                            </Group>
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.lyricPaddingLeft')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Slider
-                                defaultValue={lyricConfig.paddingLeft ?? 0}
-                                label={(value) => `${value}%`}
-                                max={20}
-                                min={0}
-                                onChangeEnd={(value) => handleLyricsSettings('paddingLeft', value)}
-                                step={1}
-                                w="100%"
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.lyricPaddingRight')}
-                        </Option.Label>
-                        <Option.Control>
-                            <Slider
-                                defaultValue={lyricConfig.paddingRight ?? 0}
-                                label={(value) => `${value}%`}
-                                max={20}
-                                min={0}
-                                onChangeEnd={(value) => handleLyricsSettings('paddingRight', value)}
-                                step={1}
-                                w="100%"
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>
-                            {t('page.fullscreenPlayer.config.lyricAlignment')}
-                        </Option.Label>
-                        <Option.Control>
-                            <SegmentedControl
-                                data={[
-                                    {
-                                        label: t('common.left'),
-                                        value: 'left',
-                                    },
-                                    {
-                                        label: t('common.center'),
-                                        value: 'center',
-                                    },
-                                    {
-                                        label: t('common.right'),
-                                        value: 'right',
-                                    },
-                                ]}
-                                onChange={(e) => handleLyricsSettings('alignment', e)}
-                                value={lyricConfig.alignment}
-                            />
-                        </Option.Control>
-                    </Option>
-                    <Option>
-                        <Option.Label>{t('page.fullscreenPlayer.config.lyricOffset')}</Option.Label>
-                        <Option.Control>
-                            <NumberInput
-                                defaultValue={lyricConfig.delayMs}
-                                hideControls={false}
-                                onBlur={(e) =>
-                                    handleLyricsSettings('delayMs', Number(e.currentTarget.value))
-                                }
-                                step={10}
-                            />
-                        </Option.Control>
-                    </Option>
-                </Popover.Dropdown>
-            </Popover>
-            <ListConfigMenu
-                buttonProps={{
-                    variant: 'subtle',
-                }}
-                displayTypes={[
-                    { hidden: true, value: ListDisplayType.GRID },
-                    ...SONG_DISPLAY_TYPES,
-                ]}
-                listKey={ItemListKey.FULL_SCREEN}
-                optionsConfig={{
-                    table: {
-                        itemsPerPage: { hidden: true },
-                        pagination: { hidden: true },
-                    },
-                }}
-                tableColumnsData={SONG_TABLE_COLUMNS}
-            />
-        </Group>
+        <div
+            className={styles.backgroundOverlay}
+            style={{ backgroundColor: `rgba(0, 0, 0, ${alpha})` }}
+        />
     );
-};
+});
+
+BackgroundOverlay.displayName = 'BackgroundOverlay';
 
 const containerVariants: Variants = {
-    closed: (custom) => {
-        const { windowBarStyle } = custom;
-        return {
-            height:
-                windowBarStyle === Platform.WINDOWS || windowBarStyle === Platform.MACOS
-                    ? 'calc(100vh - 120px)'
-                    : 'calc(100vh - 90px)',
-            position: 'absolute',
-            top: '100vh',
-            transition: {
-                duration: 0.5,
-                ease: 'easeInOut',
-            },
-            width: '100vw',
-            y: 0,
-        };
+    closed: {
+        transition: {
+            duration: 0.5,
+            ease: 'easeOut',
+        },
+        y: '100%',
     },
     open: (custom) => {
-        const { background, dynamicBackground, windowBarStyle } = custom;
+        const { background, dynamicBackground } = custom;
         return {
             backgroundColor: dynamicBackground ? background : mainBackground,
-            height:
-                windowBarStyle === Platform.WINDOWS || windowBarStyle === Platform.MACOS
-                    ? 'calc(100vh - 120px)'
-                    : 'calc(100vh - 90px)',
-            left: 0,
-            position: 'absolute',
-            top: 0,
             transition: {
                 delay: 0.1,
                 duration: 0.5,
-                ease: 'easeInOut',
+                ease: 'easeOut',
             },
-            width: '100vw',
             y: 0,
         };
     },
@@ -619,15 +260,23 @@ interface PlayerContainerProps {
     children: ReactNode;
     dynamicBackground: boolean | undefined;
     dynamicIsImage: boolean | undefined;
-    windowBarStyle: Platform;
+    opacity: number;
 }
 
 const PlayerContainer = memo(
-    ({ children, dynamicBackground, dynamicIsImage, windowBarStyle }: PlayerContainerProps) => {
+    ({ children, dynamicBackground, dynamicIsImage, opacity }: PlayerContainerProps) => {
         const currentSong = usePlayerSong();
+        const isRadioActive = useIsRadioActive();
+        const { currentStationArt: currentRadioStationArt } = useRadioPlayer();
+
+        const imageId = isRadioActive ? currentRadioStationArt?.imageId : currentSong?.imageId;
+        const currentImageUrl = isRadioActive
+            ? currentRadioStationArt?.imageUrl
+            : currentSong?.imageUrl;
+
         const imageUrl = useItemImageUrl({
-            id: currentSong?.imageId || undefined,
-            imageUrl: currentSong?.imageUrl,
+            id: imageId || undefined,
+            imageUrl: currentImageUrl,
             itemType: LibraryItem.SONG,
             type: 'itemCard',
         });
@@ -641,7 +290,7 @@ const PlayerContainer = memo(
             <motion.div
                 animate="open"
                 className={styles.container}
-                custom={{ background, dynamicBackground, windowBarStyle }}
+                custom={{ background, dynamicBackground }}
                 exit="closed"
                 initial="closed"
                 transition={{ duration: 2 }}
@@ -651,6 +300,7 @@ const PlayerContainer = memo(
                     dynamicBackground={dynamicBackground}
                     dynamicIsImage={dynamicIsImage}
                 />
+                <BackgroundOverlay dynamicBackground={dynamicBackground} opacity={opacity} />
                 {children}
             </motion.div>
         );
@@ -660,9 +310,15 @@ const PlayerContainer = memo(
 PlayerContainer.displayName = 'PlayerContainer';
 
 export const FullScreenPlayer = () => {
-    const { dynamicBackground, dynamicImageBlur, dynamicIsImage } = useFullScreenPlayerStore();
+    const { activeTab, dynamicBackground, dynamicImageBlur, dynamicIsImage, opacity } =
+        useFullScreenPlayerStore();
     const { setStore } = useFullScreenPlayerStoreActions();
-    const { windowBarStyle } = useWindowSettings();
+    const hasActiveModule =
+        activeTab === 'queue' ||
+        activeTab === 'related' ||
+        activeTab === 'lyrics' ||
+        activeTab === 'visualizer';
+
     const isRadioActive = useIsRadioActive();
     const { isPlaying: isRadioPlaying } = useRadioPlayer();
 
@@ -684,17 +340,36 @@ export const FullScreenPlayer = () => {
         <PlayerContainer
             dynamicBackground={effectiveDynamicBackground}
             dynamicIsImage={dynamicIsImage}
-            windowBarStyle={windowBarStyle}
+            opacity={opacity}
         >
-            <Controls />
+            <Group
+                className="full-screen-player-controls-container"
+                gap="sm"
+                p="0.5rem"
+                pos="absolute"
+                style={{
+                    background: `rgb(var(--theme-colors-background-transparent))`,
+                    left: 0,
+                    top: 0,
+                }}
+            >
+                <SharedFullscreenPlayerSettings />
+            </Group>
             <BackgroundImageOverlay
                 dynamicBackground={effectiveDynamicBackground}
                 dynamicImageBlur={dynamicImageBlur}
             />
             <div className={styles.responsiveContainer}>
-                <FullScreenPlayerImage />
+                <div
+                    className={clsx(styles.imageColumn, {
+                        [styles.imageColumnFull]: !hasActiveModule,
+                    })}
+                >
+                    <FullScreenPlayerImage />
+                </div>
                 <FullScreenPlayerQueue />
             </div>
+            <FullScreenPlayerControls />
         </PlayerContainer>
     );
 };

@@ -7,7 +7,8 @@ import { z } from 'zod';
 
 import { createAuthHeader, jfApiClient } from '/@/renderer/api/jellyfin/jellyfin-api';
 import { useRadioStore } from '/@/renderer/features/radio/store/radio-store';
-import { getServerUrl } from '/@/renderer/utils/normalize-server-url';
+import { isShuffleEnabled, usePlayerStoreBase } from '/@/renderer/store/player.store';
+import { getServerUrl, normalizeServerUrl } from '/@/renderer/utils/normalize-server-url';
 import { jfNormalize } from '/@/shared/api/jellyfin/jellyfin-normalize';
 import { JFSongListSort, JFSortOrder, jfType } from '/@/shared/api/jellyfin/jellyfin-types';
 import { getFeatures, hasFeature, sortSongList, VersionInfo } from '/@/shared/api/utils';
@@ -27,6 +28,7 @@ import {
     Played,
     playlistListSortMap,
     ReplaceApiClientProps,
+    ServerListItem,
     ServerType,
     Song,
     SongListSort,
@@ -40,6 +42,33 @@ import {
     UploadPlaylistImageResponse,
 } from '/@/shared/types/domain-types';
 import { ServerFeature } from '/@/shared/types/features-types';
+
+// Jellyfin can receive the client's play queue with playback reports, which lets
+// server-side consumers (session UI, prefetch plugins) see the upcoming tracks.
+// Only a window from the current track onward is reported - full queues degrade
+// the /Sessions endpoint (jellyfin/jellyfin#13377).
+const QUEUE_REPORT_WINDOW = 20;
+
+const getNowPlayingQueueWindow = (): undefined | { Id: string }[] => {
+    try {
+        const state = usePlayerStoreBase.getState();
+        const { default: order, shuffled, songs } = state.queue;
+        const playOrder = isShuffleEnabled(state) ? shuffled.map((idx) => order[idx]) : order;
+        const index = state.player.index;
+
+        if (index < 0 || index >= playOrder.length) {
+            return undefined;
+        }
+
+        const window = playOrder
+            .slice(index, index + QUEUE_REPORT_WINDOW)
+            .flatMap((uniqueId) => (songs[uniqueId] ? [{ Id: songs[uniqueId].id }] : []));
+
+        return window.length > 1 ? window : undefined;
+    } catch {
+        return undefined;
+    }
+};
 
 const getJellyfinImageRequest = ({
     apiClientProps: { server },
@@ -187,6 +216,16 @@ const VERSION_INFO: VersionInfo = [
     ],
 ];
 
+const isAudioItemType = (server: null | ServerListItem, type: string) =>
+    type === 'Audio' || (server?.enableAudiobooks === true && type === 'AudioBook');
+
+const isSupportedCollection = (server: null | ServerListItem, collectionType: string) =>
+    collectionType === jfType._enum.collection.MUSIC ||
+    (server?.enableAudiobooks === true && collectionType === jfType._enum.collection.BOOKS);
+
+const getSongItemTypes = (server: null | ServerListItem) =>
+    server?.enableAudiobooks === true ? 'Audio,AudioBook' : 'Audio';
+
 const JF_FIELDS = {
     ALBUM_ARTIST_DETAIL: ['Genres', 'Overview', 'SortName', 'ProviderIds'],
     ALBUM_ARTIST_LIST: [
@@ -243,25 +282,104 @@ export const JellyfinController: InternalControllerEndpoint = {
         return null;
     },
     authenticate: async (url, body) => {
-        const cleanServerUrl = url.replace(/\/$/, '');
+        const normalizedUrl = normalizeServerUrl(url);
 
-        const res = await jfApiClient({ server: null, url: cleanServerUrl }).authenticate({
-            body: {
-                Pw: body.password,
-                Username: body.username,
-            },
-        });
+        switch (body.action) {
+            case 'isQuickConnectEnabled': {
+                try {
+                    const res = await jfApiClient({
+                        server: null,
+                        url: normalizedUrl,
+                    }).quickConnectEnabled();
+                    return res.status === 200 && res.body === true;
+                } catch {
+                    return false;
+                }
+            }
+            case 'password':
+            case undefined: {
+                if (typeof body.password !== 'string' || typeof body.username !== 'string') {
+                    throw new Error(
+                        'Jellyfin password authentication requires a username and password',
+                    );
+                }
 
-        if (res.status !== 200) {
-            throw new Error('Failed to authenticate');
+                const res = await jfApiClient({ server: null, url: normalizedUrl }).authenticate({
+                    body: {
+                        Pw: body.password,
+                        Username: body.username,
+                    },
+                });
+
+                if (res.status !== 200) {
+                    throw new Error('Failed to authenticate');
+                }
+
+                return {
+                    credential: res.body.AccessToken,
+                    isAdmin: Boolean(res.body.User.Policy.IsAdministrator),
+                    userId: res.body.User.Id,
+                    username: res.body.User.Name,
+                };
+            }
+            case 'quickConnectAuthenticate': {
+                if (typeof body.secret !== 'string') {
+                    throw new Error('Jellyfin Quick Connect authentication requires a secret');
+                }
+
+                const res = await jfApiClient({
+                    server: null,
+                    url: normalizedUrl,
+                }).quickConnectAuthenticate({
+                    body: { Secret: body.secret },
+                });
+
+                if (res.status !== 200) {
+                    throw new Error('Failed to authenticate with Quick Connect');
+                }
+
+                return {
+                    credential: res.body.AccessToken,
+                    isAdmin: Boolean(res.body.User.Policy.IsAdministrator),
+                    userId: res.body.User.Id,
+                    username: res.body.User.Name,
+                };
+            }
+            case 'quickConnectInitiate': {
+                const res = await jfApiClient({
+                    server: null,
+                    url: normalizedUrl,
+                }).quickConnectInitiate({
+                    body: null,
+                });
+
+                if (res.status !== 200 || !res.body.Secret || !res.body.Code) {
+                    throw new Error('Quick Connect is not active on this server');
+                }
+
+                return { code: res.body.Code, secret: res.body.Secret };
+            }
+            case 'quickConnectState': {
+                if (typeof body.secret !== 'string') {
+                    throw new Error('Jellyfin Quick Connect state requires a secret');
+                }
+
+                const res = await jfApiClient({
+                    server: null,
+                    url: normalizedUrl,
+                }).quickConnectState({
+                    query: { secret: body.secret },
+                });
+
+                if (res.status !== 200) {
+                    throw new Error('Quick Connect request expired or was deactivated');
+                }
+
+                return Boolean(res.body.Authenticated);
+            }
+            default:
+                throw new Error('Jellyfin does not support this authentication method');
         }
-
-        return {
-            credential: res.body.AccessToken,
-            isAdmin: Boolean(res.body.User.Policy.IsAdministrator),
-            userId: res.body.User.Id,
-            username: res.body.User.Name,
-        };
     },
     createFavorite: async (args) => {
         const { apiClientProps, query } = args;
@@ -502,10 +620,10 @@ export const JellyfinController: InternalControllerEndpoint = {
                 userId: apiClientProps.server.userId,
             },
             query: {
-                AlbumIds: query.id,
                 EnableUserData: true,
                 Fields: JF_FIELDS.SONG,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
+                ParentId: query.id,
                 Recursive: true,
                 SortBy: 'ParentIndexNumber,IndexNumber,SortName',
                 SortOrder: JFSortOrder.ASC,
@@ -518,11 +636,10 @@ export const JellyfinController: InternalControllerEndpoint = {
             throw new Error('Failed to get album detail');
         }
 
-        // Workaround for Jellyfin bug that returns items that share the same album name
-        const albumIdSet = new Set([query.id]);
-        const songs = songsRes.body.Items.filter((item) => albumIdSet.has(item.AlbumId!));
-
-        return jfNormalize.album({ ...res.body, Songs: songs }, apiClientProps.server);
+        return jfNormalize.album(
+            { ...res.body, Songs: songsRes.body.Items },
+            apiClientProps.server,
+        );
     },
     getAlbumList: async (args) => {
         const { apiClientProps, query } = args;
@@ -694,7 +811,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             query: {
                 ArtistIds: query.artistId,
                 Fields: JF_FIELDS.SONG,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 IsFavorite: true,
                 Limit: query.limit,
                 Recursive: true,
@@ -741,7 +858,9 @@ export const JellyfinController: InternalControllerEndpoint = {
                     throw new Error('Failed to get music folder list');
                 }
 
-                let items = musicFolderRes.body.Items.filter((item) => item.Type !== 'Audio');
+                let items = musicFolderRes.body.Items.filter(
+                    (item) => !isAudioItemType(apiClientProps.server, item.Type),
+                );
 
                 if (query.searchTerm) {
                     items = filter(items, (item) => {
@@ -750,7 +869,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                 }
 
                 const folders = items
-                    .filter((item) => item.Type !== 'Audio')
+                    .filter((item) => !isAudioItemType(apiClientProps.server, item.Type))
                     .map((item) => jfNormalize.folder(item, apiClientProps.server));
 
                 const sortedFolders = orderBy(folders, [(v) => v.name.toLowerCase()], [sortOrder]);
@@ -779,7 +898,9 @@ export const JellyfinController: InternalControllerEndpoint = {
                     throw new Error('Failed to get music folder list');
                 }
 
-                let items = musicFolderRes.body.Items.filter((item) => item.Type !== 'Audio');
+                let items = musicFolderRes.body.Items.filter(
+                    (item) => !isAudioItemType(apiClientProps.server, item.Type),
+                );
 
                 if (query.searchTerm) {
                     items = filter(items, (item) => {
@@ -788,7 +909,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                 }
 
                 const folders = items
-                    .filter((item) => item.Type !== 'Audio')
+                    .filter((item) => !isAudioItemType(apiClientProps.server, item.Type))
                     .map((item) =>
                         jfNormalize.folder(
                             item as unknown as z.infer<typeof jfType._response.folder>,
@@ -867,12 +988,12 @@ export const JellyfinController: InternalControllerEndpoint = {
         const items = folderDetailRes.body.Items || [];
 
         let filteredFolders = items
-            .filter((item) => item.Type !== 'Audio')
+            .filter((item) => !isAudioItemType(apiClientProps.server, item.Type))
             .map((item) => jfNormalize.folder(item, apiClientProps.server));
         let filteredSongs = items
             .filter(
                 (item) =>
-                    item.Type === 'Audio' &&
+                    isAudioItemType(apiClientProps.server, item.Type) &&
                     (item as unknown as z.infer<typeof jfType._response.song>).MediaSources,
             )
             .map((item) =>
@@ -1014,8 +1135,8 @@ export const JellyfinController: InternalControllerEndpoint = {
             throw new Error('Failed to get genre list');
         }
 
-        const musicFolders = res.body.Items.filter(
-            (folder) => folder.CollectionType === jfType._enum.collection.MUSIC,
+        const musicFolders = res.body.Items.filter((folder) =>
+            isSupportedCollection(apiClientProps.server, folder.CollectionType),
         );
 
         return {
@@ -1101,7 +1222,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             query: {
                 // XXX: No fields are required for only IDs, which saves processing time between
                 // the Jellyfin server query, network (MBs vs KBs), and in-app parsing.
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 UserId: apiClientProps.server?.userId,
             },
         });
@@ -1129,7 +1250,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             },
             query: {
                 Fields: JF_FIELDS.PLAYLIST_DETAIL,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 UserId: apiClientProps.server?.userId,
             },
         });
@@ -1170,7 +1291,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             query: {
                 Fields: JF_FIELDS.SONG,
                 GenreIds: query.genre ? query.genre : undefined,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 IsPlayed:
                     query.played === Played.Never
                         ? false
@@ -1348,6 +1469,8 @@ export const JellyfinController: InternalControllerEndpoint = {
         let totalRecordCount = 0;
         const batchSize = 50;
 
+        const includeItemTypes = getSongItemTypes(apiClientProps.server);
+
         // Handle albumIds fetches in batches to prevent HTTP 414 errors
         if (query.albumIds && query.albumIds.length > batchSize) {
             const albumIdBatches = chunk(query.albumIds, batchSize);
@@ -1364,7 +1487,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                         ArtistIds: artistIdsFilter,
                         Fields: JF_FIELDS.SONG,
                         GenreIds: query.genreIds?.join(','),
-                        IncludeItemTypes: 'Audio',
+                        IncludeItemTypes: includeItemTypes,
                         IsFavorite: query.favorite,
                         Limit: query.limit === -1 ? undefined : query.limit,
                         ParentId: getLibraryId(query.musicFolderId),
@@ -1399,7 +1522,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                     ArtistIds: artistIdsFilter,
                     Fields: JF_FIELDS.SONG,
                     GenreIds: query.genreIds?.join(','),
-                    IncludeItemTypes: 'Audio',
+                    IncludeItemTypes: includeItemTypes,
                     IsFavorite: query.favorite,
                     Limit: query.limit === -1 ? undefined : query.limit,
                     ParentId: getLibraryId(query.musicFolderId),
@@ -1444,12 +1567,63 @@ export const JellyfinController: InternalControllerEndpoint = {
             query: { ...query, limit: 1, startIndex: 0 },
         }).then((result) => result!.totalRecordCount!),
     getStreamUrl: async ({ apiClientProps: { server }, query }) => {
-        const { bitrate, format, id, transcode } = query;
+        // Lossy encoders top out at 48 kHz (libmp3lame, libopus, aac); asking Jellyfin
+        // for more makes ffmpeg fail and the stream never starts.
+        const clampSampleRate = (rate: number | undefined, codec: string) =>
+            rate && ['aac', 'mp3', 'ogg', 'opus', 'vorbis'].includes(codec)
+                ? Math.min(rate, 48000)
+                : rate;
+        const {
+            bitrate,
+            container,
+            format,
+            forRenderer,
+            id,
+            maxSampleRate,
+            sampleRate,
+            startTime,
+            transcode,
+        } = query;
+        // A transcoded stream is chunked and cannot be ranged into, so a seek is expressed
+        // as a new stream that starts at the requested offset.
+        const startTimeTicks =
+            transcode && startTime && startTime > 0 ? Math.round(startTime * 10_000_000) : 0;
+        // Jellyfin keys a running transcode on media path, user agent, device id and play
+        // session id only. With an empty session id a request for the same file with new
+        // parameters (another offset, a changed cap) is served from the job already running,
+        // and a running job is also found by session id alone, so the id carries the item and
+        // every parameter that must yield a different stream.
+        const transcodeSession = (codec: string, rate: number | undefined) =>
+            `feishin-${id}-${codec}-${rate ?? 0}-${startTimeTicks}`;
         const deviceId = '';
 
         let url = `${server?.url}/Items/${id}/Download?apiKey=${server?.credential}&playSessionId=${deviceId}`;
 
-        if (transcode) {
+        if (transcode && forRenderer) {
+            // UPnP/DLNA renderers commonly pick a decoder from the URL's file extension and
+            // refuse the extension-less universal route, so build a stream.{format} URL for
+            // them. That route takes an exact sample rate, so only cap when the source is
+            // above the configured maximum, and send the file untouched when it already
+            // matches the requested format.
+            const realFormat = (format || 'mp3').toLowerCase();
+            if (container?.toLowerCase() !== realFormat) {
+                const cappedRate = clampSampleRate(maxSampleRate, realFormat);
+                url =
+                    `${server?.url}/Audio/${id}/stream.${realFormat}` +
+                    `?audioCodec=${realFormat}&static=false` +
+                    `&apiKey=${server?.credential}` +
+                    `&playSessionId=${transcodeSession(realFormat, cappedRate)}`;
+                if (bitrate !== undefined) {
+                    url += `&audioBitRate=${bitrate * 1000}`;
+                }
+                if (cappedRate && sampleRate && sampleRate > cappedRate) {
+                    url += `&audioSampleRate=${cappedRate}`;
+                }
+                if (startTimeTicks > 0) {
+                    url += `&startTimeTicks=${startTimeTicks}`;
+                }
+            }
+        } else if (transcode) {
             // Some format appears to be required. Fall back to trusty MP3 if not specified
             // Otherwise, ffmpeg appears to crash
             const realFormat = format || 'mp3';
@@ -1474,6 +1648,17 @@ export const JellyfinController: InternalControllerEndpoint = {
             if (bitrate !== undefined) {
                 url += `&maxStreamingBitrate=${bitrate * 1000}`;
             }
+            const cappedRate = clampSampleRate(maxSampleRate, realFormat.toLowerCase());
+            if (cappedRate) {
+                url += `&maxAudioSampleRate=${cappedRate}`;
+            }
+            if (startTimeTicks > 0) {
+                url += `&startTimeTicks=${startTimeTicks}`;
+            }
+            url = url.replace(
+                `&playSessionId=${deviceId}`,
+                `&playSessionId=${transcodeSession(realFormat.toLowerCase(), cappedRate)}`,
+            );
         }
 
         return url;
@@ -1485,9 +1670,14 @@ export const JellyfinController: InternalControllerEndpoint = {
             return { boolTags: undefined, enumTags: undefined, excluded: { album: [], song: [] } };
         }
 
+        const includeItemTypes =
+            query.type === LibraryItem.SONG
+                ? getSongItemTypes(apiClientProps.server)
+                : 'MusicAlbum';
+
         const res = await jfApiClient(apiClientProps).getFilterList({
             query: {
-                IncludeItemTypes: query.type === LibraryItem.SONG ? 'Audio' : 'MusicAlbum',
+                IncludeItemTypes: includeItemTypes,
                 ParentId: query.folder,
                 UserId: apiClientProps.server?.userId ?? '',
             },
@@ -1500,7 +1690,7 @@ export const JellyfinController: InternalControllerEndpoint = {
         const studioRes = await jfApiClient(apiClientProps).getStudioList({
             query: {
                 EnableTotalRecordCount: true,
-                IncludeItemTypes: query.type === LibraryItem.SONG ? 'Audio' : 'MusicAlbum',
+                IncludeItemTypes: includeItemTypes,
                 ParentId: query.folder,
             },
         });
@@ -1549,7 +1739,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             query: {
                 ArtistIds: query.artistId,
                 Fields: JF_FIELDS.SONG,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 Limit: query.limit,
                 Recursive: true,
                 SortBy:
@@ -1672,7 +1862,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             },
             query: {
                 Fields: JF_FIELDS.SONG,
-                IncludeItemTypes: 'Audio',
+                IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                 UserId: apiClientProps.server?.userId,
             },
         });
@@ -1772,6 +1962,7 @@ export const JellyfinController: InternalControllerEndpoint = {
         const { apiClientProps, query } = args;
 
         const position = query.position && Math.round(query.position);
+        const nowPlayingQueue = getNowPlayingQueueWindow();
 
         if (query.submission) {
             // Checked by jellyfin-plugin-lastfm for whether or not to send the "finished" scrobble (uses PositionTicks)
@@ -1790,6 +1981,7 @@ export const JellyfinController: InternalControllerEndpoint = {
             jfApiClient(apiClientProps).scrobblePlaying({
                 body: {
                     ItemId: query.id,
+                    NowPlayingQueue: nowPlayingQueue,
                     PositionTicks: position,
                 },
             });
@@ -1816,6 +2008,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                     EventName: query.event,
                     IsPaused: false,
                     ItemId: query.id,
+                    NowPlayingQueue: nowPlayingQueue,
                     PositionTicks: position,
                 },
             });
@@ -1836,7 +2029,9 @@ export const JellyfinController: InternalControllerEndpoint = {
 
         jfApiClient(apiClientProps).scrobbleProgress({
             body: {
+                EventName: query.event,
                 ItemId: query.id,
+                NowPlayingQueue: query.event === 'timeupdate' ? undefined : nowPlayingQueue,
                 PositionTicks: position,
             },
         });
@@ -1910,7 +2105,7 @@ export const JellyfinController: InternalControllerEndpoint = {
                 query: {
                     EnableTotalRecordCount: true,
                     Fields: JF_FIELDS.SONG,
-                    IncludeItemTypes: 'Audio',
+                    IncludeItemTypes: getSongItemTypes(apiClientProps.server),
                     Limit: query.songLimit,
                     Recursive: true,
                     SearchTerm: query.query,
@@ -1974,8 +2169,8 @@ export const JellyfinController: InternalControllerEndpoint = {
                 throw new Error('Failed to get music folders');
             }
 
-            musicFolderIds = res.body.Items.filter(
-                (folder) => folder.CollectionType === jfType._enum.collection.MUSIC,
+            musicFolderIds = res.body.Items.filter((folder) =>
+                isSupportedCollection(apiClientProps.server, folder.CollectionType),
             ).map((folder) => folder.Id);
         }
 

@@ -2,7 +2,6 @@ import { BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron
 
 import packageJson from '../../package.json';
 
-import { store } from '/@/main/features/core/settings';
 import { PlayerRepeat, PlayerStatus } from '/@/shared/types/types';
 
 export type MenuPlaybackState = {
@@ -78,9 +77,11 @@ export default class MenuBuilder {
     applicationMenu: Menu | null = null;
     developmentEnvironmentSetup = false;
     mainWindow: BrowserWindow;
+    showMainWindow: () => void;
 
-    constructor(mainWindow: BrowserWindow) {
+    constructor(mainWindow: BrowserWindow, showMainWindow: () => void) {
         this.mainWindow = mainWindow;
+        this.showMainWindow = showMainWindow;
     }
 
     buildDarwinTemplate({
@@ -176,21 +177,12 @@ export default class MenuBuilder {
         };
         const subMenuWindow: MenuItemConstructorOptions = {
             role: 'windowMenu',
-            submenu:
-                store.get('window_exit_to_tray') && !this.mainWindow.isVisible()
-                    ? [
-                          {
-                              type: 'separator',
-                          },
-                          {
-                              accelerator: 'CmdOrCtrl+0',
-                              click: () => {
-                                  this.mainWindow.show();
-                              },
-                              label: 'Feishin',
-                          },
-                      ]
-                    : undefined,
+            submenu: [
+                {
+                    click: this.showMainWindow,
+                    label: 'Show Feishin',
+                },
+            ],
         };
         const subMenuPlayback: MenuItemConstructorOptions = {
             label: 'Playback',

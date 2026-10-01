@@ -27,6 +27,7 @@ import {
     useHotkeySettings,
     usePlayerSong,
     useSetFullScreenPlayerStore,
+    useSidebarImageEnabled,
 } from '/@/renderer/store';
 import { ActionIcon } from '/@/shared/components/action-icon/action-icon';
 import { Center } from '/@/shared/components/center/center';
@@ -46,7 +47,7 @@ export const LeftControls = () => {
     } = useFullScreenPlayerStore();
     const setFullScreenPlayerStore = useSetFullScreenPlayerStore();
 
-    const { collapsed, image } = useAppStore(
+    const { collapsed: sidebarCollapsed, image: sidebarImageShown } = useAppStore(
         (state) => ({
             collapsed: state.sidebar.collapsed,
             image: state.sidebar.image,
@@ -58,10 +59,11 @@ export const LeftControls = () => {
     const isRadioActive = useIsRadioActive();
     const { currentStationArt } = useRadioPlayer();
     const { bindings } = useHotkeySettings();
+    const sidebarImageEnabled = useSidebarImageEnabled();
 
     const isRadioMode = isRadioActive;
     const hasRadioStationImage = Boolean(currentStationArt?.imageId || currentStationArt?.imageUrl);
-    const hideImage = image && !collapsed;
+    const hideImage = !sidebarCollapsed && sidebarImageEnabled && sidebarImageShown;
     const isSongDefined = Boolean(currentSong?.id) && !isRadioMode;
     const title = currentSong?.name;
     const artists = currentSong?.artists;
@@ -77,7 +79,11 @@ export const LeftControls = () => {
         const shouldClose = isFullScreenPlayerExpanded || isFullScreenVisualizerExpanded;
 
         if (shouldClose) {
-            setFullScreenPlayerStore({ expanded: false, visualizerExpanded: false });
+            setFullScreenPlayerStore({
+                expanded: false,
+                visualizerExpanded: false,
+                visualizerReturnToPlayer: false,
+            });
         } else {
             setFullScreenPlayerStore({ expanded: true });
         }
@@ -128,9 +134,10 @@ export const LeftControls = () => {
                                 onClick={handleToggleFullScreenPlayer}
                                 onContextMenu={handleToggleContextMenu}
                                 role="button"
-                                transition={{ duration: 0.2, ease: 'easeIn' }}
+                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                whileHover={{ scale: 1.1 }}
                             >
-                                <Tooltip label={t('player.toggleFullscreenPlayer')} openDelay={0}>
+                                <Tooltip label={t('player.toggleFullscreenPlayer')}>
                                     {isRadioMode && hasRadioStationImage ? (
                                         <ItemImage
                                             className={clsx(
@@ -144,6 +151,7 @@ export const LeftControls = () => {
                                             itemType={LibraryItem.RADIO_STATION}
                                             serverId={currentStationArt?.serverId}
                                             src={currentStationArt?.imageUrl ?? ''}
+                                            thumbHash={currentStationArt?.thumbHash ?? null}
                                             type="table"
                                         />
                                     ) : isRadioMode ? (
@@ -157,6 +165,7 @@ export const LeftControls = () => {
                                         </Center>
                                     ) : (
                                         <ItemImage
+                                            blurHash={currentSong?.blurHash}
                                             className={clsx(
                                                 styles.playerbarImage,
                                                 PlaybackSelectors.playerCoverArt,
@@ -168,24 +177,20 @@ export const LeftControls = () => {
                                             id={currentSong?.imageId}
                                             itemType={LibraryItem.SONG}
                                             serverId={currentSong?._serverId}
+                                            thumbHash={currentSong?.thumbHash}
                                             type="table"
                                         />
                                     )}
                                 </Tooltip>
-                                {!collapsed && (
+                                {!sidebarCollapsed && sidebarImageEnabled && (
                                     <ActionIcon
+                                        className={styles.toggleButton}
                                         icon="arrowUpS"
                                         iconProps={{ size: 'xl' }}
                                         onClick={handleToggleSidebarImage}
                                         opacity={0.8}
                                         radius="md"
                                         size="xs"
-                                        style={{
-                                            cursor: 'default',
-                                            position: 'absolute',
-                                            right: 2,
-                                            top: 2,
-                                        }}
                                         tooltip={{
                                             label: t('common.expand'),
                                             openDelay: 0,

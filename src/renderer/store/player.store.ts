@@ -57,10 +57,6 @@ interface Actions {
     mediaSeekToTimestamp: (timestamp: number) => void;
     mediaSkipBackward: (offset?: number) => void;
     mediaSkipForward: (offset?: number) => void;
-    /**
-     * @param options.reset - When true (default), sets seekToTimestamp(0) so the engine seeks to start.
-     * Timestamp display is always cleared to 0. Use false when the engine is already idle (e.g. mpv `stopped`) to skip that seek.
-     */
     mediaStop: (options?: { reset?: boolean }) => void;
     mediaToggleMute: () => void;
     mediaTogglePlayPause: () => void;
@@ -91,6 +87,9 @@ interface GroupedQueue {
 
 interface State {
     hydrated: boolean;
+    // Runtime-only: true once the mpv engine has finished initializing.
+    // Top-level keys are not persisted (see partialize), same as `hydrated`.
+    mpvInitialized: boolean;
     player: {
         crossfadeDuration: number;
         crossfadeStyle: CrossfadeStyle;
@@ -171,6 +170,11 @@ export function mapShuffledToQueueIndex(shuffledIndex: number, shuffled: number[
     return shuffledIndex;
 }
 
+// We need to use a unique id so that the equalityFn can work if attempting to set the same timestamp
+export function uniqueSeekToTimestamp(timestamp: number) {
+    return `${timestamp}-${nanoid()}`;
+}
+
 // Helper function to add new indexes to shuffled array after current position
 function addIndexesToShuffled(
     shuffled: number[],
@@ -218,12 +222,19 @@ function calculateNextIndex(
             return { nextIndex: currentIndex + 1, shouldStop: false };
         }
     } else {
-        // Repeat none: move to next track, or stop if at the end
+        // Repeat none: move to next track, or loop back and stop if at the end
         if (isLastTrack) {
-            return { nextIndex: currentIndex, shouldStop: true };
+            return { nextIndex: 0, shouldStop: true };
         } else {
             return { nextIndex: currentIndex + 1, shouldStop: false };
         }
+    }
+}
+
+function clearActiveRadio(): void {
+    const radioState = useRadioPlayerStore.getState();
+    if (radioState.currentStreamUrl) {
+        radioState.actions.clear();
     }
 }
 
@@ -232,6 +243,9 @@ function emitPlayerPlayEvent(
     set: (fn: (state: PlayerState) => void) => void,
     get: () => PlayerState,
 ): void {
+    // Clear radio before status changes so onPlayerStatus does not restart the stream.
+    clearActiveRadio();
+
     // If playSongId is provided, find the song and start playback on it
     if (targetSongUniqueId) {
         let playIndex: number | undefined;
@@ -329,6 +343,7 @@ function regenerateShuffledIndexesIfNeeded(state: {
 
 const initialState: State = {
     hydrated: false,
+    mpvInitialized: false,
     player: {
         crossfadeDuration: 5,
         crossfadeStyle: CrossfadeStyle.EQUAL_POWER,
@@ -507,9 +522,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                             break;
                         }
                         case Play.NOW: {
-                            if (useRadioPlayerStore.getState().currentStreamUrl) {
-                                useRadioPlayerStore.getState().actions.stop();
-                            }
+                            clearActiveRadio();
 
                             set((state) => {
                                 newItems.forEach((item) => {
@@ -565,9 +578,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                             break;
                         }
                         case Play.SHUFFLE: {
-                            if (useRadioPlayerStore.getState().currentStreamUrl) {
-                                useRadioPlayerStore.getState().actions.stop();
-                            }
+                            clearActiveRadio();
 
                             set((state) => {
                                 newItems.forEach((item) => {
@@ -674,6 +685,8 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
 
                     // If playSongId is provided, find the song and start playback on it
                     if (targetSongUniqueId) {
+                        clearActiveRadio();
+
                         let playIndex: number | undefined;
                         set((state) => {
                             const queue = state.getQueue();
@@ -1102,6 +1115,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
 
                     if (shouldStop) {
                         set((state) => {
+                            state.player.index = nextIndex;
                             state.player.status = PlayerStatus.STOPPED;
                             state.player.playerNum = 1;
                             setTimestampStore(0);
@@ -1133,6 +1147,11 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                 },
                 mediaPlay: (id?: string) => {
                     let playIndex: number | undefined;
+
+                    // Playing a specific queue song should dismiss radio first.
+                    if (id) {
+                        clearActiveRadio();
+                    }
 
                     set((state) => {
                         if (id) {
@@ -1180,6 +1199,8 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                 mediaPlayByIndex: (index: number) => {
                     let playIndex: number | undefined;
                     let songId: string | undefined;
+
+                    clearActiveRadio();
 
                     set((state) => {
                         const queue = state.getQueue();
@@ -1323,8 +1344,8 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                     const reset = options?.reset !== false;
                     set((state) => {
                         state.player.status = PlayerStatus.STOPPED;
-                        setTimestampStore(0);
                         if (reset) {
+                            setTimestampStore(0);
                             state.player.seekToTimestamp = uniqueSeekToTimestamp(0);
                         }
                     });
@@ -1485,7 +1506,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                 ...initialState,
                 setCrossfadeDuration: (duration: number) => {
                     set((state) => {
-                        const normalizedDuration = Math.max(0, Math.min(10, duration));
+                        const normalizedDuration = Math.max(3, Math.min(21, duration));
                         state.player.crossfadeDuration = normalizedDuration;
                     });
                 },
@@ -1558,7 +1579,7 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                 },
                 setVolume: (volume: number) => {
                     set((state) => {
-                        state.player.volume = volume;
+                        state.player.volume = Math.min(100, Math.max(0, volume));
                     });
                 },
                 shuffle: () => {
@@ -1711,7 +1732,13 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
         ),
         {
             merge: (persistedState: any, currentState: any) => {
-                return merge(currentState, persistedState);
+                const merged = merge(currentState, persistedState);
+
+                if (merged.player) {
+                    merged.player.volume = Math.min(100, Math.max(0, merged.player.volume));
+                }
+
+                return merged;
             },
             migrate: async (persistedState, oldVersion) => {
                 if (oldVersion < 3) {
@@ -1726,7 +1753,12 @@ export const usePlayerStoreBase = createWithEqualityFn<PlayerState>()(
                 return persistedState as Partial<PlayerState>;
             },
             name: 'player-store',
-            onRehydrateStorage: () => () => {
+            onRehydrateStorage: () => (state) => {
+                if (!state) return;
+                const playback = useSettingsStore.getState().playback;
+                if (playback.previousLocalVolume !== undefined) {
+                    state.player.volume = Math.min(100, Math.max(0, playback.previousLocalVolume));
+                }
                 usePlayerStoreBase.setState({ hydrated: true });
             },
             partialize: (state) => {
@@ -1824,6 +1856,11 @@ export type AddToQueueByPlayType = Play;
 export type AddToQueueByUniqueId = {
     edge: 'bottom' | 'left' | 'right' | 'top' | null;
     uniqueId: string;
+};
+
+export type AddToQueueOptions = {
+    filter?: (song: Song) => boolean;
+    skipConfirmation?: boolean;
 };
 
 export type AddToQueueType = AddToQueueByPlayType | AddToQueueByUniqueId;
@@ -2207,6 +2244,14 @@ export const usePlayerHydrated = () => {
     return usePlayerStoreBase((state) => state.hydrated);
 };
 
+export const useMpvInitialized = () => {
+    return usePlayerStoreBase((state) => state.mpvInitialized);
+};
+
+export const setMpvInitialized = (mpvInitialized: boolean) => {
+    usePlayerStoreBase.setState({ mpvInitialized });
+};
+
 export const usePlayerVolume = () => {
     return usePlayerStoreBase((state) => state.player.volume);
 };
@@ -2361,9 +2406,4 @@ function toQueueSong(item: Song): QueueSong {
         ...item,
         _uniqueId: nanoid(),
     };
-}
-
-// We need to use a unique id so that the equalityFn can work if attempting to set the same timestamp
-function uniqueSeekToTimestamp(timestamp: number) {
-    return `${timestamp}-${nanoid()}`;
 }

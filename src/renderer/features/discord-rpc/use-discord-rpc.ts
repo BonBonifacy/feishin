@@ -51,7 +51,7 @@ export const useDiscordRpc = () => {
     const [lastUniqueId, setlastUniqueId] = useState('');
 
     const isRadioActive = useIsRadioActive();
-    const { isPlaying: isRadioPlaying, metadata: radioMetadata, stationName } = useRadioPlayer();
+    const { metadata: radioMetadata, stationName } = useRadioPlayer();
 
     const currentSong = usePlayerSong();
     const imageUrl = useItemImageUrl({
@@ -94,8 +94,7 @@ export const useDiscordRpc = () => {
             const song = current[0];
             const trackChanged = song ? lastUniqueId !== song._uniqueId : false;
 
-            const isPlayingRadio = isRadioActive && isRadioPlaying;
-            const hasTrackOrRadio = Boolean(current[0]) || isPlayingRadio;
+            const hasTrackOrRadio = Boolean(current[0]) || isRadioActive;
 
             if (
                 !hasTrackOrRadio || // No track and not playing radio
@@ -119,9 +118,15 @@ export const useDiscordRpc = () => {
                 return discordRpc?.clearActivity();
             }
 
-            if (isPlayingRadio) {
+            if (isRadioActive) {
                 const title = radioMetadata?.title || stationName || 'Radio';
                 const artist = radioMetadata?.artist || stationName || '';
+
+                const statusDisplayMap = {
+                    [DiscordDisplayType.ARTIST_NAME]: DiscordStatusDisplayType.STATE,
+                    [DiscordDisplayType.FEISHIN]: DiscordStatusDisplayType.NAME,
+                    [DiscordDisplayType.SONG_NAME]: DiscordStatusDisplayType.DETAILS,
+                };
 
                 const activity: SetActivity = {
                     details: truncate(title),
@@ -141,7 +146,7 @@ export const useDiscordRpc = () => {
                                 : undefined
                             : sentenceCase(current[2]),
                     state: truncate(artist),
-                    statusDisplayType: DiscordStatusDisplayType.STATE,
+                    statusDisplayType: statusDisplayMap[discordSettings.displayType],
                     type: discordSettings.showAsListening ? 2 : 0,
                 };
 
@@ -210,20 +215,23 @@ export const useDiscordRpc = () => {
             if (
                 (discordSettings.linkType == DiscordLinkType.LAST_FM ||
                     discordSettings.linkType == DiscordLinkType.MBZ_LAST_FM) &&
-                song?.artistName
+                song.artistName
             ) {
                 activity.stateUrl =
                     'https://www.last.fm/music/' + encodeURIComponent(song.artists[0].name);
 
-                const detailsUrl =
+                const albumUrl =
                     'https://www.last.fm/music/' +
                     encodeURIComponent(song.albumArtists[0].name) +
                     '/' +
-                    encodeURIComponent(song.album || '_') +
-                    '/' +
-                    encodeURIComponent(song.name);
+                    encodeURIComponent(song.album || '_');
+                const detailsUrl = albumUrl + '/' + encodeURIComponent(song.name);
 
                 // The details URL has a max length, only set it if it doesn't exceed it
+                if (albumUrl.length <= MAX_URL_LENGTH) {
+                    activity.largeImageUrl = albumUrl;
+                }
+
                 if (detailsUrl.length <= MAX_URL_LENGTH) {
                     activity.detailsUrl = detailsUrl;
                 }
@@ -238,6 +246,10 @@ export const useDiscordRpc = () => {
                 } else if (song?.mbzRecordingId) {
                     activity.detailsUrl =
                         'https://musicbrainz.org/recording/' + song.mbzRecordingId;
+                }
+
+                if (song.mbzAlbumId) {
+                    activity.largeImageUrl = 'https://musicbrainz.org/release/' + song.mbzAlbumId;
                 }
             }
 
@@ -345,7 +357,6 @@ export const useDiscordRpc = () => {
             lastUniqueId,
             currentSong?._uniqueId,
             isRadioActive,
-            isRadioPlaying,
             radioMetadata?.artist,
             radioMetadata?.title,
             stationName,

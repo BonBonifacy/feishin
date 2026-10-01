@@ -69,16 +69,26 @@ const getPlaylistImageId = (item: z.infer<typeof jfType._response.playlist>): nu
     return null;
 };
 
+const getBlurHash = (
+    item:
+        | z.infer<typeof jfType._response.album>
+        | z.infer<typeof jfType._response.albumArtist>
+        | z.infer<typeof jfType._response.playlist>
+        | z.infer<typeof jfType._response.song>,
+): null | string => {
+    return item.ImageBlurHashes?.Primary?.[item.ImageTags?.Primary ?? ''] || null;
+};
+
 const jellyfinPremiereFields = (item: {
     PremiereDate?: string;
     ProductionYear?: number;
-}): { originalYear: number; releaseDate: null | string; releaseYear: null | number } => {
+}): { originalYear: null | number; releaseDate: null | string; releaseYear: null | number } => {
     const premiere = parsePartialIsoDateFromApi(item.PremiereDate ?? null);
     const prodYear = coerceYear(item.ProductionYear);
-    const releaseYear: null | number =
-        premiere.year > 0 ? premiere.year : prodYear > 0 ? prodYear : null;
-    const releaseDate = premiere.date ?? (prodYear > 0 ? String(prodYear) : null);
-    const originalYear = premiere.year > 0 ? premiere.year : prodYear;
+    const fallbackYear = prodYear && prodYear > 0 ? prodYear : null;
+    const releaseYear: null | number = premiere.year > 0 ? premiere.year : fallbackYear;
+    const releaseDate = premiere.date ?? (fallbackYear !== null ? String(fallbackYear) : null);
+    const originalYear = premiere.year > 0 ? premiere.year : fallbackYear;
     return { originalYear, releaseDate, releaseYear };
 };
 
@@ -89,6 +99,7 @@ const normalizeSong = (
     let bitDepth: null | number = null;
     let bitRate = 0;
     let channels: null | number = null;
+    let codec: null | string = null;
     let container: null | string = null;
     let path: null | string = null;
     let sampleRate: null | number = null;
@@ -110,6 +121,7 @@ const normalizeSong = (
                             ? Number(Math.trunc(stream.BitRate / 1000))
                             : 0;
                     channels = stream.Channels || null;
+                    codec = stream.Codec || null;
                     sampleRate = stream.SampleRate || null;
                     break;
                 }
@@ -119,7 +131,7 @@ const normalizeSong = (
         console.warn('Jellyfin song retrieved with no media sources', item);
     }
 
-    const { releaseDate, releaseYear } = jellyfinPremiereFields(item);
+    const { originalYear, releaseDate, releaseYear } = jellyfinPremiereFields(item);
 
     return {
         _itemType: LibraryItem.SONG,
@@ -149,17 +161,20 @@ const normalizeSong = (
         ),
         bitDepth,
         bitRate,
+        blurHash: getBlurHash(item),
         bpm: null,
         channels,
+        codec,
         comment: null,
         compilation: null,
         container,
         createdAt: item.DateCreated,
-        date: releaseDate || String(releaseYear),
+        date: releaseDate || (releaseYear !== null ? String(releaseYear) : null),
         discNumber: (item.ParentIndexNumber && item.ParentIndexNumber) || 1,
         discSubtitle: null,
         duration: item.RunTimeTicks / TICKS_PER_MS,
         explicitStatus: null,
+        folderId: null,
         gain:
             item.AlbumNormalizationGain !== undefined ||
             item.NormalizationGain !== undefined ||
@@ -189,11 +204,20 @@ const normalizeSong = (
         id: item.Id,
         imageId: getSongImageId(item),
         imageUrl: null,
+        isResumable: item.Type === 'AudioBook',
         lastPlayedAt: null,
+        libraryId: null,
+        libraryName: null,
         lyrics: null,
+        mbzAlbumId: item.ProviderIds?.MusicBrainzAlbum || null,
+        mbzAlbumType: null,
         mbzRecordingId: null,
+        mbzReleaseGroupId: null,
         mbzTrackId: item.ProviderIds?.MusicBrainzTrack || null,
+        missing: null,
         name: item.Name,
+        originalDate: releaseDate,
+        originalYear,
         participants: null,
         path: path || '',
         peak: null,
@@ -201,10 +225,14 @@ const normalizeSong = (
         playlistItemId: item.PlaylistItemId,
         releaseDate,
         releaseYear,
+        resumePositionMs: item.UserData
+            ? item.UserData.PlaybackPositionTicks / TICKS_PER_MS
+            : undefined,
         sampleRate,
         size,
         sortName: item.SortName || item.Name,
         tags: getTags(item),
+        thumbHash: null,
         trackNumber: item.IndexNumber,
         trackSubtitle: null,
         updatedAt: item.DateCreated,
@@ -244,10 +272,14 @@ const normalizeAlbum = (
                 userRating: null,
             }),
         ),
+        blurHash: getBlurHash(item),
         comment: null,
         createdAt: item.DateCreated,
+        discs: null,
+        dominantColor: null,
         duration: item.RunTimeTicks / TICKS_PER_MS,
         explicitStatus: null,
+        gain: null,
         genres:
             item.GenreItems?.map((entry) => ({
                 _itemType: LibraryItem.GENRE,
@@ -267,11 +299,14 @@ const normalizeAlbum = (
         lastPlayedAt: null,
         mbzId: item.ProviderIds?.MusicBrainzAlbum || null,
         mbzReleaseGroupId: item.ProviderIds?.MusicBrainzReleaseGroup || null,
+        missing: null,
         name: item.Name,
         originalDate: releaseDate,
         originalYear,
         participants: null,
+        peak: null,
         playCount: item.UserData?.PlayCount || 0,
+        ratedAt: null,
         recordLabels: item.Studios?.map((entry) => entry.Name) || [],
         releaseDate,
         releaseType: null,
@@ -281,7 +316,9 @@ const normalizeAlbum = (
         songCount: item?.ChildCount || null,
         songs: item.Songs?.map((song) => normalizeSong(song, server)),
         sortName: item.SortName || item.Name,
+        starredAt: null,
         tags: getTags(item),
+        thumbHash: null,
         trackYearRange: null,
         updatedAt: item?.DateLastMediaAdded || item.DateCreated,
         userFavorite: item.UserData?.IsFavorite || false,
@@ -314,6 +351,8 @@ const normalizeAlbumArtist = (
         _serverType: ServerType.JELLYFIN,
         albumCount: item.AlbumCount ?? null,
         biography: item.Overview || null,
+        blurHash: getBlurHash(item),
+        dominantColor: null,
         duration: item.RunTimeTicks / TICKS_PER_MS,
         genres: item.GenreItems?.map((entry) => ({
             _itemType: LibraryItem.GENRE,
@@ -331,10 +370,14 @@ const normalizeAlbumArtist = (
         imageUrl: null,
         lastPlayedAt: null,
         mbz: item.ProviderIds?.MusicBrainzArtist || null,
+        missing: null,
         name: item.Name,
         playCount: item.UserData?.PlayCount || 0,
+        ratedAt: null,
         similarArtists,
         songCount: item.SongCount ?? null,
+        starredAt: null,
+        thumbHash: null,
         uploadedImage: item.ImageTags?.Primary ?? undefined,
         userFavorite: item.UserData?.IsFavorite || false,
         userRating: null,
@@ -349,8 +392,11 @@ const normalizePlaylist = (
         _itemType: LibraryItem.PLAYLIST,
         _serverId: server?.id || '',
         _serverType: ServerType.JELLYFIN,
+        blurHash: getBlurHash(item),
         description: item.Overview || null,
+        dominantColor: null,
         duration: item.RunTimeTicks / TICKS_PER_MS,
+        evaluatedAt: null,
         genres: item.GenreItems?.map((entry) => ({
             _itemType: LibraryItem.GENRE,
             _serverId: server?.id || '',
@@ -373,6 +419,7 @@ const normalizePlaylist = (
         size: null,
         songCount: item?.ChildCount || null,
         sync: null,
+        thumbHash: null,
         uploadedImage: item.ImageTags?.Primary ?? undefined,
     };
 };

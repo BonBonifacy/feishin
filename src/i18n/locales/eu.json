@@ -11,7 +11,6 @@
         "removeFromPlaylist": "Kendu $t(entity.playlist, {\"count\": 1})-(e)tik",
         "removeFromQueue": "Kendu ilaratik",
         "setRating": "Ezarri balorazioa",
-        "toggleSmartPlaylistEditor": "Txandakatu $t(entity.smartPlaylist) editorea",
         "viewPlaylists": "Ikusi $t(entity.playlist, {\"count\": 2})",
         "openIn": {
             "lastfm": "Ireki Last.fm-n",
@@ -218,7 +217,8 @@
         "addNextShuffled": "Hurrengoa (ausaz)",
         "artistRadio": "Artista irratia",
         "trackRadio": "Pista irratia",
-        "sleepTimer_custom": "Pertsonalizatua"
+        "sleepTimer_custom": "Pertsonalizatua",
+        "albumRadio": "Albumaren irratia"
     },
     "table": {
         "config": {
@@ -777,7 +777,8 @@
         "sidebarPlaylistList": "Alboko barrako erreprodukzio-zerrendak",
         "sidebarPlaylistMode_description": "Nola bistaratzen den erreprodukzio-zerrenda bakoitza alboko barrako zerrendan",
         "equalizerPreset": "Aurrezarpena",
-        "equalizerPresetGroupBuiltIn": "Barneratua"
+        "equalizerPresetGroupBuiltIn": "Barneratua",
+        "hotkey_playbackNextAlbum": "Hurrengo albuma"
     },
     "form": {
         "addServer": {

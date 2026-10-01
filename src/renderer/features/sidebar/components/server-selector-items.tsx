@@ -205,20 +205,22 @@ export const ServerSelectorItems = () => {
                     >
                         {t('page.appMenu.manageServers')}
                     </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                        leftSection={<Icon icon="refresh" />}
-                        onClick={handleRescanLibrary}
-                    >
-                        {t('page.appMenu.rescanLibrary')}
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                        leftSection={<Icon color="error" icon="signOut" />}
-                        onClick={handleLogout}
-                    >
-                        {t('page.appMenu.logout')}
-                    </DropdownMenu.Item>
+                    {currentServer.isAdmin && (
+                        <DropdownMenu.Item
+                            leftSection={<Icon icon="refresh" />}
+                            onClick={handleRescanLibrary}
+                        >
+                            {t('page.appMenu.rescanLibrary')}
+                        </DropdownMenu.Item>
+                    )}
                 </>
             )}
+            <DropdownMenu.Item
+                leftSection={<Icon color="error" icon="signOut" />}
+                onClick={handleLogout}
+            >
+                {t('page.appMenu.logout')}
+            </DropdownMenu.Item>
             {!isServerLock() && <></>}
             {musicFolders && musicFolders.items.length > 0 && (
                 <>

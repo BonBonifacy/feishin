@@ -37,6 +37,11 @@ import './features';
 import { hotkeyToElectronAccelerator } from './utils';
 
 import { disableAutoUpdates, isLinux, isMacOS, isWindows } from '/@/main/env';
+import {
+    clampWindowBoundsToDisplay,
+    DEFAULT_WINDOW_BOUNDS,
+    resolveWindowBounds,
+} from '/@/main/utils/window-bounds';
 import { PlayerRepeat, PlayerStatus, PlayerType, TitleTheme } from '/@/shared/types/types';
 
 const ALPHA_UPDATER_CONFIG: {
@@ -367,9 +372,7 @@ let currentSidebarCollapsed = false;
 let currentShuffleEnabled = false;
 
 app.on('before-quit', () => {
-    if (isMacOS()) {
-        forceQuit = true;
-    }
+    forceQuit = true;
     log.info('App quitting', { reason: exitFromTray ? 'tray' : 'before-quit' });
 });
 let playbackMenuAccelerators: MenuPlaybackState['accelerators'] = {};
@@ -434,6 +437,33 @@ const getAssetPath = (...paths: string[]): string => {
 
 export const getMainWindow = () => {
     return mainWindow;
+};
+
+const hideMainWindowToTray = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+    }
+
+    mainWindow.setSkipTaskbar(true);
+    mainWindow.hide();
+};
+
+export const showMainWindow = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        void createWindow(false);
+        return;
+    }
+
+    if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+    }
+
+    mainWindow.setSkipTaskbar(false);
+    mainWindow.show();
+    mainWindow.focus();
+    createWinThumbarButtons();
 };
 
 const getMainMenuState = (): MenuPlaybackState => ({
@@ -545,8 +575,7 @@ const createTray = () => {
             click: () => {
                 if (mainWindow === null) createWindow(false);
                 else {
-                    mainWindow.show();
-                    createWinThumbarButtons();
+                    showMainWindow();
                 }
             },
             label: 'Open main window',
@@ -562,16 +591,10 @@ const createTray = () => {
 
     if (!isMacOS()) {
         tray.on('click', () => {
-            if (store.get('window_minimize_to_tray')) {
-                if (mainWindow?.isVisible()) {
-                    mainWindow?.hide();
-                } else {
-                    mainWindow?.show();
-                    createWinThumbarButtons();
-                }
+            if (store.get('window_minimize_to_tray') && mainWindow?.isVisible()) {
+                hideMainWindowToTray();
             } else {
-                mainWindow?.show();
-                createWinThumbarButtons();
+                showMainWindow();
             }
         });
     }
@@ -614,11 +637,29 @@ async function createWindow(first = true): Promise<void> {
         },
     };
 
+    const savedBounds = store.get('bounds') as Rectangle | undefined;
+    const workArea = (
+        savedBounds && Number.isFinite(savedBounds.x) && Number.isFinite(savedBounds.y)
+            ? screen.getDisplayMatching(savedBounds)
+            : screen.getPrimaryDisplay()
+    ).workArea;
+    const windowBounds = resolveWindowBounds(savedBounds, workArea);
+
+    if (
+        savedBounds &&
+        (windowBounds.width !== savedBounds.width || windowBounds.height !== savedBounds.height)
+    ) {
+        log.warn('Clamped window bounds to display', {
+            saved: savedBounds,
+            windowBounds,
+            workArea,
+        });
+    }
+
     // Create the browser window.
     mainWindow = new BrowserWindow({
         autoHideMenuBar: true,
         frame: false,
-        height: 900,
         icon: isWindows() ? getAssetPath('icons/icon.ico') : getAssetPath('icons/icon.png'),
         minHeight: 120,
         minWidth: 480,
@@ -633,31 +674,12 @@ async function createWindow(first = true): Promise<void> {
             sandbox: true,
             webSecurity: !store.get('ignore_cors'),
         },
-        width: 1440,
         ...(nativeFrame && isLinux() && nativeFrameConfig.linux),
         ...(nativeFrame && isMacOS() && nativeFrameConfig.macOS),
         ...(nativeFrame && isWindows() && nativeFrameConfig.windows),
+        ...DEFAULT_WINDOW_BOUNDS,
+        ...windowBounds,
     });
-
-    // From https://github.com/electron/electron/issues/526#issuecomment-1663959513
-    const bounds = store.get('bounds') as Rectangle | undefined;
-    if (bounds) {
-        const screenArea = screen.getDisplayMatching(bounds).workArea;
-        if (
-            bounds.x > screenArea.x + screenArea.width ||
-            bounds.x < screenArea.x ||
-            bounds.y < screenArea.y ||
-            bounds.y > screenArea.y + screenArea.height
-        ) {
-            if (bounds.width < screenArea.width && bounds.height < screenArea.height) {
-                mainWindow.setBounds({ height: bounds.height, width: bounds.width });
-            } else {
-                mainWindow.setBounds({ height: 900, width: 1440 });
-            }
-        } else {
-            mainWindow.setBounds(bounds);
-        }
-    }
 
     electronLocalShortcut.register(mainWindow, 'Ctrl+Shift+I', () => {
         mainWindow?.webContents.openDevTools();
@@ -676,7 +698,12 @@ async function createWindow(first = true): Promise<void> {
     });
 
     ipcMain.on('window-minimize', () => {
-        mainWindow?.minimize();
+        if (store.get('window_minimize_to_tray') === true) {
+            log.info('Main window minimized to tray');
+            hideMainWindowToTray();
+        } else {
+            mainWindow?.minimize();
+        }
     });
 
     ipcMain.on('window-close', () => {
@@ -795,25 +822,21 @@ async function createWindow(first = true): Promise<void> {
         mainWindow = null;
     });
 
-    if (isMacOS()) {
-        mainWindow.on('show', () => {
-            rebuildMainMenu();
-        });
-
-        mainWindow.on('hide', () => {
-            rebuildMainMenu();
-        });
-    }
-
     mainWindow.on('close', (event) => {
-        store.set('bounds', mainWindow?.getNormalBounds());
-        store.set('maximized', mainWindow?.isMaximized());
-        store.set('fullscreen', mainWindow?.isFullScreen());
+        if (mainWindow) {
+            const bounds = mainWindow.getNormalBounds();
+            store.set(
+                'bounds',
+                clampWindowBoundsToDisplay(bounds, screen.getDisplayMatching(bounds).workArea),
+            );
+            store.set('maximized', mainWindow.isMaximized());
+            store.set('fullscreen', mainWindow.isFullScreen());
+        }
 
         if (!exitFromTray && store.get('window_exit_to_tray')) {
             event.preventDefault();
             log.info('Main window hidden to tray');
-            mainWindow?.hide();
+            hideMainWindowToTray();
         }
 
         if (forceQuit) {
@@ -822,11 +845,12 @@ async function createWindow(first = true): Promise<void> {
         }
     });
 
-    (mainWindow as any).on('minimize', (event: any) => {
+    mainWindow.on('minimize', () => {
         if (store.get('window_minimize_to_tray') === true) {
-            event.preventDefault();
             log.info('Main window minimized to tray');
-            mainWindow?.hide();
+            setImmediate(() => {
+                hideMainWindowToTray();
+            });
         }
     });
 
@@ -834,7 +858,7 @@ async function createWindow(first = true): Promise<void> {
         app.setAppUserModelId('org.jeffvli.feishin');
     }
 
-    menuBuilder = new MenuBuilder(mainWindow);
+    menuBuilder = new MenuBuilder(mainWindow, showMainWindow);
     rebuildMainMenu();
 
     // Open URLs in the user's browser
@@ -1113,13 +1137,7 @@ if (!singleInstance) {
 } else {
     app.on('second-instance', () => {
         if (mainWindow) {
-            if (mainWindow.isMinimized()) {
-                mainWindow.restore();
-            } else if (!mainWindow.isVisible()) {
-                mainWindow.show();
-            }
-
-            mainWindow.focus();
+            showMainWindow();
         }
     });
 
@@ -1198,9 +1216,8 @@ if (!singleInstance) {
                 // On macOS it's common to re-create a window in the app when the
                 // dock icon is clicked and there are no other windows open.
                 if (mainWindow === null) createWindow(false);
-                else if (!mainWindow.isVisible()) {
-                    mainWindow.show();
-                    createWinThumbarButtons();
+                else if (!mainWindow.isVisible() || mainWindow.isMinimized()) {
+                    showMainWindow();
                 }
             });
         })

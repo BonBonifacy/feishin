@@ -21,6 +21,36 @@ interface LyricsExportFormProps {
     synced: boolean;
 }
 
+export function lyricsMetadataToLrc(lyrics: FullLyricsMetadata, offsetMs: number, synced: boolean) {
+    if (Array.isArray(lyrics.lyrics)) {
+        const normalizedLyrics = normalizeLyrics(lyrics.lyrics);
+
+        if (!synced) {
+            return (
+                normalizedLyrics.map((lyric) => lyric.text.replaceAll('_BREAK_', '\n')).join('\n') +
+                '\n'
+            );
+        }
+
+        const contents = normalizedLyrics
+            .map(
+                (lyric) =>
+                    `[${formatDuration(lyric.startMs, { leading: true, ms: true })}]${lyric.text.replaceAll('_BREAK_', '\n')}`,
+            )
+            .join('\n');
+
+        return `[ar:${lyrics.artist}]
+[ti:${lyrics.name}]
+[offset:${offsetMs + (lyrics.offsetMs ?? 0)}]
+${contents}
+`;
+    }
+
+    return typeof lyrics.lyrics === 'string'
+        ? lyrics.lyrics.replaceAll('_BREAK_', '\n')
+        : lyrics.lyrics;
+}
+
 export const LyricsExportForm = ({ lyrics, offsetMs, synced }: LyricsExportFormProps) => {
     const { t } = useTranslation();
 
@@ -32,36 +62,8 @@ export const LyricsExportForm = ({ lyrics, offsetMs, synced }: LyricsExportFormP
     });
 
     const displayedLyrics = useMemo(() => {
-        if (Array.isArray(lyrics.lyrics)) {
-            const normalizedLyrics = normalizeLyrics(lyrics.lyrics);
-
-            if (!form.values.synced) {
-                return normalizedLyrics.map((lyric) => lyric.text).join('\n') + '\n';
-            }
-
-            const contents = normalizedLyrics
-                .map(
-                    (lyric) =>
-                        `[${formatDuration(lyric.startMs, { leading: true, ms: true })}]${lyric.text.replaceAll('_BREAK_', '\n')}`,
-                )
-                .join('\n');
-
-            return `[ar:${lyrics.artist}]
-[ti:${lyrics.name}]
-[offset:${form.values.offsetMs + (lyrics.offsetMs ?? 0)}]
-${contents}
-`;
-        }
-
-        return typeof lyrics.lyrics === 'string' ? lyrics.lyrics.replaceAll('_BREAK_', '\n') : lyrics.lyrics;
-    }, [
-        form.values.offsetMs,
-        form.values.synced,
-        lyrics.artist,
-        lyrics.lyrics,
-        lyrics.name,
-        lyrics.offsetMs,
-    ]);
+        return lyricsMetadataToLrc(lyrics, form.values.offsetMs, form.values.synced);
+    }, [form.values.offsetMs, form.values.synced, lyrics]);
 
     const exportLyrics = useCallback(() => {
         const extension = form.values.synced ? '.lrc' : '.txt';

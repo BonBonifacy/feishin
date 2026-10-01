@@ -108,13 +108,15 @@ export const DefaultTitleCombinedColumn = (props: ItemTableListInnerColumn) => {
                         onMouseLeave={() => setIsHovered(false)}
                     >
                         <ItemImage
-                            containerClassName={styles.image}
+                            blurHash={item?.blurHash}
+                            dominantColor={item?.dominantColor}
                             enableDebounce={true}
                             enableViewport={false}
                             explicitStatus={item?.explicitStatus}
                             id={item?.imageId}
                             itemType={item?._itemType}
                             src={item?.imageUrl}
+                            thumbHash={item?.thumbHash}
                             type="table"
                         />
                         {isHovered && (
@@ -151,7 +153,10 @@ export const DefaultTitleCombinedColumn = (props: ItemTableListInnerColumn) => {
                     })}
                 >
                     <Text
-                        className={styles.title}
+                        className={clsx(styles.title, {
+                            [styles.compact]: props.size === 'compact',
+                            [styles.large]: props.size === 'large',
+                        })}
                         isNoSelect
                         size="md"
                         truncate
@@ -271,12 +276,14 @@ export const QueueSongTitleCombinedColumn = (props: ItemTableListInnerColumn) =>
                         onMouseLeave={() => setIsHovered(false)}
                     >
                         <ItemImage
-                            containerClassName={styles.image}
+                            blurHash={item?.blurHash}
+                            dominantColor={item?.dominantColor}
                             explicitStatus={item?.explicitStatus}
                             id={item?.imageId}
                             itemType={item?._itemType}
                             serverId={item?._serverId}
                             src={item?.imageUrl}
+                            thumbHash={item?.thumbHash}
                             type="table"
                         />
                         {isHovered && (
@@ -316,6 +323,8 @@ export const QueueSongTitleCombinedColumn = (props: ItemTableListInnerColumn) =>
                     <Text
                         className={clsx({
                             [styles.active]: isActive,
+                            [styles.compact]: props.size === 'compact',
+                            [styles.large]: props.size === 'large',
                             [styles.title]: true,
                         })}
                         isNoSelect

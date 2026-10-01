@@ -12,7 +12,6 @@ import { getFeatures, hasFeature, hasFeatureWithVersion, VersionInfo } from '/@/
 import {
     albumArtistListSortMap,
     albumListSortMap,
-    AuthenticationResponse,
     DeleteArtistImageArgs,
     DeleteArtistImageResponse,
     DeleteInternetRadioStationImageArgs,
@@ -141,7 +140,15 @@ export const NavidromeController: InternalControllerEndpoint = {
 
         return null;
     },
-    authenticate: async (url, body): Promise<AuthenticationResponse> => {
+    authenticate: async (url, body) => {
+        if (body.action && body.action !== 'password') {
+            throw new Error('Navidrome does not support this authentication method');
+        }
+
+        if (typeof body.password !== 'string' || typeof body.username !== 'string') {
+            throw new Error('Navidrome authentication requires a username and password');
+        }
+
         const cleanServerUrl = url.replace(/\/$/, '');
 
         const res = await ndApiClient({ server: null, url: cleanServerUrl }).authenticate({
@@ -174,7 +181,7 @@ export const NavidromeController: InternalControllerEndpoint = {
                 name: body.name,
                 ownerId: body.ownerId,
                 public: body.public,
-                rules: body.queryBuilderRules,
+                rules: body.queryBuilderRules ?? null,
                 sync: body.sync,
             },
         });
@@ -289,7 +296,7 @@ export const NavidromeController: InternalControllerEndpoint = {
     getAlbumArtistInfo: async (args) => {
         const { apiClientProps, query } = args;
 
-        const artistInfoRes = await ssApiClient(apiClientProps).getArtistInfo({
+        const artistInfoRes = await ssApiClient(apiClientProps).getArtistInfo2({
             query: {
                 id: query.id,
                 ...(query.limit != null && { count: query.limit }),
@@ -300,7 +307,7 @@ export const NavidromeController: InternalControllerEndpoint = {
             return null;
         }
 
-        const artistInfo = artistInfoRes.body.artistInfo;
+        const artistInfo = artistInfoRes.body.artistInfo2;
         const imageUrl =
             artistInfo?.largeImageUrl ||
             artistInfo?.mediumImageUrl ||
@@ -312,8 +319,8 @@ export const NavidromeController: InternalControllerEndpoint = {
             imageUrl,
             similarArtists:
                 artistInfo?.similarArtist?.map((artist) => ({
-                    id: artist.id,
-                    imageId: artist.id,
+                    id: String(artist.id),
+                    imageId: String(artist.id),
                     imageUrl: null,
                     name: artist.name,
                     userFavorite: Boolean(artist.starred) || false,

@@ -41,6 +41,14 @@
     }
 }
 
+.toggle-button {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 10;
+    cursor: default;
+}
+
 .playerbar-image {
     display: flex;
     align-items: center;

@@ -284,12 +284,12 @@
         "discordDisplayType_description": "Cambia qué estás escuchando en tu estado",
         "discordDisplayType": "Tipo de pantalla de actividad de {{discord}}",
         "hotkey_navigateHome": "Navegar a inicio",
-        "preventSleepOnPlayback": "Evitar entrar en reposo durante la reproducción",
-        "preventSleepOnPlayback_description": "Evita que la pantalla entre en reposo mientras se está reproduciendo música",
+        "preventSleepOnPlayback": "Evitar que la pantalla entre en reposo durante la reproducción",
+        "preventSleepOnPlayback_description": "Evita que la pantalla se apague mientras se está reproduciendo música",
         "discordLinkType": "Enlaces de estado de {{discord}}",
         "discordLinkType_none": "$t(common.none)",
         "discordLinkType_mbz_lastfm": "{{musicbrainz}} con {{lastfm}} como alternativa",
-        "discordLinkType_description": "Añade enlaces externos a {{lastfm}} o {{musicbrainz}} a la canción y campos del artista en el estado de actividad de {{discord}} . {{musicbrainz}} es el más preciso pero requiere etiquetas y no proporciona enlaces del artista mientras que {{lastfm}} debería siempre proporcionar un enlace. No realiza peticiones de red adicionales",
+        "discordLinkType_description": "Añade enlaces de {{lastfm}} o {{musicbrainz}} al estado de actividad de {{discord}} . {{musicbrainz}} es el más preciso pero requiere etiquetas y no proporciona enlaces del artista mientras que {{lastfm}} debería siempre proporcionar un enlace. No realiza peticiones de red adicionales",
         "artistBackground": "Imagen de fondo del artista",
         "artistBackgroundBlur": "Tamaño de desenfoque de imagen de fondo del artista",
         "artistBackgroundBlur_description": "Ajusta la cantidad de desenfoque aplicado a la imagen de fondo del artista",
@@ -429,8 +429,8 @@
         "waveformLoadingDelay_description": "Retraso en segundos antes de cargar la forma de onda. Incrementa este valor si estás experimentando tartamudeos al usar el reproductor web.",
         "playerbarWaveformStretch": "Estiramiento de la forma de onda",
         "playerbarWaveformStretch_description": "Estira la forma de onda para rellenar el espacio disponible",
-        "preventSuspendOnPlayback": "Evitar la suspensión durante la reproducción",
-        "preventSuspendOnPlayback_description": "Evita que la aplicación se suspenda mientras se reproduce música",
+        "preventSuspendOnPlayback": "Evitar que el sistema entre en reposo durante la reproducción",
+        "preventSuspendOnPlayback_description": "Evita que el sistema entre en reposo mientras se reproduce música",
         "hotkey_listShowPlayingSong": "Mostrar canción en reproducción en la lista",
         "sidebarPlaylistFolders": "Habilitar carpetas",
         "sidebarPlaylistFolders_description": "Crea una vista de carpeta para las listas de reproducción que incluye el separador configurado en el nombre",
@@ -525,7 +525,25 @@
         "shareExpiration_description": "Cuándo expiran en el futuro de forma predeterminada los nuevos enlaces de compartir. Limpiar la fecha en el diálogo de compartir para usar en su lugar la predeterminada del servidor",
         "shareExpirationUseServerDefault_description": "Omite una expiración cuando se crean enlaces de compartir para que el servidor pueda aplicar la predeterminada configurada (p. ej. Navidrome DefaultShareExpiration)",
         "confirmQueueChanges": "Confirmar cambios en cola",
-        "confirmQueueChanges_description": "Pide confirmación antes de descartar la cola actual"
+        "confirmQueueChanges_description": "Pide confirmación antes de descartar la cola actual",
+        "fullscreenAutoOpenTimeout_description": "Abre el reproductor a pantalla completa automáticamente tras estos minutos de inactividad mientras se reproduce una canción. Establece a 0 para desactivar",
+        "fullscreenAutoOpenTimeout": "Tiempo de espera de apertura automática del reproductor a pantalla completa (minutos)",
+        "sidebarImageEnabled": "Expandir botón del arte del álbum",
+        "sidebarImageEnabled_description": "Muestra un botón en el arte del álbum de la barra del reproductor para expandirlo en la barra lateral. Desactivar esto también esconde el botón y contrae el arte del álbum si está expandido actualmente",
+        "scrobbleMinimumMode_optionBoth": "Ambos",
+        "scrobbleMinimumMode_optionSeconds": "Segundos",
+        "scrobbleMinimumMode_optionPercentage": "Porcentaje",
+        "scrobbleMinimumMode": "Establecer modo mínimo de scrobble",
+        "scrobbleMinimumMode_description": "Scrobblea después de un porcentaje de la canción, un número determinado de segundos, o cualquiera de los dos",
+        "transcodeNote": "La transcodificación se hace a nivel de servidor y se aplica en la siguiente pista",
+        "transcodeSampleRate_description": "Frecuencia de muestreo máxima en Hz para audio transcodificado, p. ej. 192000. Dejar vacío para mantener la frecuencia origen. Solo en Jellyfin",
+        "transcodeSampleRate": "Máxima frecuencia de muestreo a transcodificar",
+        "imagePlaceholderPriority_optionDominantColor": "Color dominante",
+        "imagePlaceholderPriority_optionOff": "Apagado",
+        "imagePlaceholderPriority": "Prioridad del marcador de posición de la imagen",
+        "imagePlaceholderPriority_description": "Establece el tipo de marcador de posición de imagen a usar mientras se carga si está disponible",
+        "imagePlaceholderPriority_optionBlurhash": "BlurHash",
+        "imagePlaceholderPriority_optionThumbhash": "ThumbHash"
     },
     "action": {
         "editPlaylist": "Editar $t(entity.playlist, {\"count\": 1})",
@@ -543,7 +561,6 @@
         "deselectAll": "Desmarcar todo",
         "moveToBottom": "Mover al final",
         "setRating": "Establecer calificación",
-        "toggleSmartPlaylistEditor": "Cambiar editor $t(entity.smartPlaylist)",
         "removeFromFavorites": "Eliminar de $t(entity.favorite, {\"count\": 2})",
         "openIn": {
             "lastfm": "Abrir en Last.fm",
@@ -743,7 +760,9 @@
         "noNetworkDescription": "No se pudo conectar a este servidor",
         "invalidJson": "JSON inválido",
         "serverLockSingleServer": "Solo se permite un servidor cuando el servidor está bloqueado",
-        "playbackPausedDueToError": "La reproducción fue pausada debido a un error"
+        "playbackPausedDueToError": "La reproducción fue pausada debido a un error",
+        "jellyfinQuickConnectDeactivated": "Petición de Conexión rápida expirada",
+        "jellyfinQuickConnectNotActive": "Conexión rápida no está activa en este servidor"
     },
     "filter": {
         "mostPlayed": "Más reproducidos",
@@ -870,7 +889,8 @@
             "explore": "Explora desde tu biblioteca",
             "recentlyPlayed": "Reproducidos recientemente",
             "recentlyReleased": "Lanzado recientemente",
-            "genres": "$t(entity.genre, {\"count\": 2})"
+            "genres": "$t(entity.genre, {\"count\": 2})",
+            "playlists": "Listas de reproducción"
         },
         "fullscreenPlayer": {
             "upNext": "A continuación",
@@ -908,7 +928,13 @@
                 "lyricGapUnsynchronized_description": "Espaciado vertical entre líneas de letra no sincronizadas",
                 "lyricLineLeadTime_description": "Adelanta la línea activa todos estos milisegundos antes de su marca de tiempo",
                 "lyricPaddingLeft_description": "Relleno izquierdo como porcentaje del área de letra",
-                "lyricPaddingRight_description": "Relleno derecho como porcentaje del área de letra"
+                "lyricPaddingRight_description": "Relleno derecho como porcentaje del área de letra",
+                "coverArtSize": "Tamaño del arte de la portada",
+                "playerItemAlignment": "Alineación de elementos del reproductor",
+                "titleDisplayType": "Estilo de visualización del título",
+                "titleDisplayType_optionMultiLine": "Línea múltiple",
+                "titleLineCount": "Número de línea del título",
+                "titleDisplayType_optionScroll": "Desplazamiento"
             },
             "lyrics": "Letras",
             "related": "Relacionado",
@@ -1087,7 +1113,19 @@
             "input_remoteUrl": "URL Pública",
             "input_preferRemoteUrl": "Preferir URL Pública",
             "input_remoteUrlPlaceholder": "Opcional: URL pública para características externas",
-            "input_passwordNoSSO": "La autenticación de proxy inverso (SSO) no está soportada. Solo está soportada la autenticación por usuario/contraseña y la autenticación de Subsonic"
+            "input_passwordNoSSO": "La autenticación de proxy inverso (SSO) no está soportada. Solo está soportada la autenticación por usuario/contraseña y la autenticación de Subsonic",
+            "input_jellyfinQuickConnect": "Conexión rápida",
+            "input_jellyfinQuickConnectCode": "Introduce este código en tu interfaz de usuario web de Jellyfin para autorizar",
+            "input_jellyfinQuickConnectCodeCopied": "Copiado",
+            "input_jellyfinQuickConnectCodeCopy": "Copiar código",
+            "input_jellyfinQuickConnectOpen": "Abrir Conexión rápida",
+            "input_jellyfinQuickConnectWaiting": "Esperando aprobación en tu servidor Jellyfin…",
+            "input_jellyfinSignInMethod": "Iniciar sesión con",
+            "input_jellyfinSignInMethodPassword": "Contraseña",
+            "input_jellyfinSignInMethodQuickConnect": "Conexión rápida",
+            "input_remoteUrlDescription": "Usado en lugar de la URL para características externas, como enlaces compartidos. Dejar esto en blanco a menos que tu servidor sea alcanzable a través de una dirección diferente desde fuera de tu red.",
+            "input_enableAudiobooks": "Activar audiolibros",
+            "input_enableAudiobooksDescription": "Muestra contenido de audiolibros desde las bibliotecas \"Libros\""
         },
         "addToPlaylist": {
             "success": "Añadido $t(entity.trackWithCount, {\"count\": {{message}} }) a $t(entity.playlistWithCount, {\"count\": {{numOfPlaylists}} })",
@@ -1585,5 +1623,53 @@
         "systemAudioCaptureFailed": "No se pudo iniciar la captura: {{message}}",
         "systemAudioNoAudioTrack": "Ninguna pista de audio devuelta. Asegúrate de que la captura de audio está activada cuando se solicite.",
         "systemAudioExclusiveModeNotSupported": "El visualizador no está disponible mientras el modo de audio exclusivo esté activado. Desactiva el modo de audio exclusivo en la configuración de MPV e inténtalo de nuevo."
+    },
+    "dlna": {
+        "castToDevice": "Emitir a dispositivo DLNA",
+        "castingToDevice": "Emitir a {{name}}",
+        "castingToGroup": "Emitiendo al grupo ({{count}})",
+        "connected": "Conectado",
+        "connecting": "Conectando…",
+        "createGroup": "Crear grupo",
+        "devices": "Dispositivos DLNA",
+        "disconnect": "Desconectar",
+        "disconnectAndContinue": "Desconectar y continuar",
+        "noDevicesFound": "Ningún dispositivo DLNA encontrado",
+        "nowCasting": "Emitiendo ahora",
+        "searching": "Buscando dispositivos…",
+        "group": {
+            "add": "Añadir",
+            "addSpeaker": "Añadir altavoz",
+            "addSpeakers": "Añadir altavoces",
+            "addToGroup": "Añadir al grupo",
+            "cancel": "Cancelar",
+            "connect": "Conectar",
+            "coordinator": "Coordinador",
+            "failedToAddMessage": "No se puede añadir{{name}}. Podría no estar en el mismo sistema Sonos.",
+            "failedToAddTitle": "Error al añadir altavoz",
+            "firstSelectedIsCoordinator": "Primero seleccionado = coordinador",
+            "noSonosFound": "Ningún dispositivo Sonos encontrado",
+            "refresh": "Actualizar",
+            "remove": "Eliminar",
+            "searching": "Buscando…",
+            "selectSpeakers": "Seleccionar grupo de altavoces",
+            "title": "Grupo ({{count}} altavoces)"
+        },
+        "shiftDisconnectHint": "Mantén Shift y pulsa Desconectar para mantener la reproducción en el altavoz",
+        "speakerProperties": {
+            "bass": "Bajos",
+            "crossfade": "Crossfade",
+            "ledState": "Luz de estado",
+            "loadFailed": "No se pudieron cargar las propiedades",
+            "loading": "Cargando…",
+            "longPressHint": "Pulsación larga para las propiedades del altavoz",
+            "loudness": "Intensidad sonora",
+            "touchControls": "Controles de toque",
+            "treble": "Agudos"
+        },
+        "volume": {
+            "groupControl": "Mantener Shift para modificar los volúmenes individuales del altavoz",
+            "individualControl": "Soltar Shift para modificar todos los volúmenes del altavoz"
+        }
     }
 }

@@ -9,6 +9,7 @@ import {
     useMemo,
 } from 'react';
 import { IconBaseProps } from 'react-icons';
+import { CgSpinnerTwoAlt } from 'react-icons/cg';
 import {
     LuAlignCenter,
     LuAlignLeft,
@@ -30,6 +31,7 @@ import {
     LuBookOpen,
     LuBraces,
     LuCamera,
+    LuCast,
     LuCheck,
     LuChevronDown,
     LuChevronLast,
@@ -40,6 +42,7 @@ import {
     LuChevronUp,
     LuCircle,
     LuCircleCheck,
+    LuCircleSlash,
     LuCircleX,
     LuClipboardCopy,
     LuClock3,
@@ -61,6 +64,7 @@ import {
     LuGithub,
     LuGripHorizontal,
     LuGripVertical,
+    LuGroup,
     LuHardDrive,
     LuHash,
     LuHeadphones,
@@ -79,7 +83,6 @@ import {
     LuListMinus,
     LuListMusic,
     LuListPlus,
-    LuLoader,
     LuLock,
     LuLockOpen,
     LuLogIn,
@@ -109,10 +112,12 @@ import {
     LuSettings2,
     LuShare2,
     LuShieldAlert,
+    LuShrink,
     LuShuffle,
     LuSkipBack,
     LuSkipForward,
     LuSlidersHorizontal,
+    LuSparkle,
     LuSquare,
     LuSquareCheck,
     LuSquareMenu,
@@ -254,8 +259,10 @@ export const AppIcon = {
     brandQobuz: QobuzLogoIcon,
     brandSpotify: SpotifyLogoIcon,
     cache: LuCloudDownload,
+    cast: LuCast,
     check: LuCheck,
     circle: LuCircle,
+    circleSlash: LuCircleSlash,
     clipboardCopy: LuClipboardCopy,
     collapseAll: LuChevronsDownUp,
     collection: LuPackage2,
@@ -286,6 +293,7 @@ export const AppIcon = {
     folderClosed: LuFolderClosed,
     genre: LuFlag,
     goToItem: LuCornerDownRight,
+    group: LuGroup,
     hash: LuHash,
     home: LuSquareMenu,
     image: LuImage,
@@ -340,6 +348,7 @@ export const AppIcon = {
     queue: LuList,
     radio: LuRadio,
     refresh: LuRotateCw,
+    related: LuSparkle,
     remove: LuMinus,
     save: LuSave,
     search: LuSearch,
@@ -347,6 +356,7 @@ export const AppIcon = {
     settings: LuSettings2,
     settings2: LuSettings,
     share: LuShare2,
+    shrink: LuShrink,
     signIn: LuLogIn,
     signOut: LuLogOut,
     sleepTimer: LuTimer,
@@ -354,7 +364,7 @@ export const AppIcon = {
     sort: LuArrowUpDown,
     sortAsc: LuArrowUpNarrowWide,
     sortDesc: LuArrowDownWideNarrow,
-    spinner: LuLoader,
+    spinner: CgSpinnerTwoAlt,
     square: LuSquare,
     squareCheck: LuSquareCheck,
     star: LuStar,
@@ -381,14 +391,7 @@ export const AppIcon = {
     xCircle: LuCircleX,
 } as const;
 
-export interface IconProps extends Omit<IconBaseProps, 'color' | 'fill' | 'size'> {
-    animate?: 'pulse' | 'spin';
-    color?: IconColor;
-    fill?: IconColor;
-    icon: keyof typeof AppIcon;
-    size?: '2xl' | '3xl' | '4xl' | '5xl' | 'lg' | 'md' | 'sm' | 'xl' | 'xs' | number | string;
-}
-type IconColor =
+export type IconColor =
     | 'contrast'
     | 'default'
     | 'error'
@@ -400,6 +403,14 @@ type IconColor =
     | 'success'
     | 'transparent'
     | 'warn';
+
+export interface IconProps extends Omit<IconBaseProps, 'color' | 'fill' | 'size'> {
+    animate?: 'pulse' | 'spin';
+    color?: IconColor;
+    fill?: IconColor;
+    icon: keyof typeof AppIcon;
+    size?: '2xl' | '3xl' | '4xl' | '5xl' | 'lg' | 'md' | 'sm' | 'xl' | 'xs' | number | string;
+}
 
 const _Icon = forwardRef<HTMLDivElement, IconProps>((props, ref) => {
     const { animate, className, color, fill, icon, size = 'md' } = props;

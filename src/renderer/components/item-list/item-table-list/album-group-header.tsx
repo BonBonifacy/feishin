@@ -168,13 +168,15 @@ export const AlbumGroupHeader = ({
                 style={imageContainerStyle}
             >
                 <ItemImage
+                    blurHash={song?.blurHash}
                     className={imageColumnStyles.compactImage}
                     enableDebounce
                     enableViewport={false}
                     id={song?.imageId}
                     itemType={LibraryItem.SONG}
+                    size={albumImageSize}
                     src={song?.imageUrl}
-                    type="table"
+                    thumbHash={song?.thumbHash}
                 />
                 {isImageHovered && onPlay && (
                     <div className={imageColumnStyles.playButtonOverlay}>

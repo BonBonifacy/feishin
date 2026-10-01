@@ -1,3 +1,5 @@
+import type { ImagePlaceholderPriority } from '/@/shared/utils/image-hash';
+
 import { t } from 'i18next';
 import isElectron from 'is-electron';
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -82,6 +84,33 @@ const SIDE_QUEUE_LAYOUT_OPTIONS = [
             context: 'optionVertical',
         }),
         value: 'vertical',
+    },
+];
+
+const IMAGE_PLACEHOLDER_PRIORITY_OPTIONS = [
+    {
+        label: t('setting.imagePlaceholderPriority', {
+            context: 'optionThumbhash',
+        }),
+        value: 'thumbhash',
+    },
+    {
+        label: t('setting.imagePlaceholderPriority', {
+            context: 'optionBlurhash',
+        }),
+        value: 'blurhash',
+    },
+    {
+        label: t('setting.imagePlaceholderPriority', {
+            context: 'optionDominantColor',
+        }),
+        value: 'dominantColor',
+    },
+    {
+        label: t('setting.imagePlaceholderPriority', {
+            context: 'optionOff',
+        }),
+        value: 'off',
     },
 ];
 
@@ -643,6 +672,28 @@ export const ApplicationSettings = memo(() => {
         },
         {
             control: (
+                <Select
+                    data={IMAGE_PLACEHOLDER_PRIORITY_OPTIONS}
+                    defaultValue={settings.imagePlaceholderPriority}
+                    onChange={(e) => {
+                        if (!e) return;
+                        setSettings({
+                            general: {
+                                ...settings,
+                                imagePlaceholderPriority: e as ImagePlaceholderPriority,
+                            },
+                        });
+                    }}
+                />
+            ),
+            description: t('setting.imagePlaceholderPriority', {
+                context: 'description',
+            }),
+            isHidden: false,
+            title: t('setting.imagePlaceholderPriority'),
+        },
+        {
+            control: (
                 <Switch
                     aria-label={t('setting.enableGridMultiSelect')}
                     defaultChecked={settings.enableGridMultiSelect}
@@ -682,6 +733,33 @@ export const ApplicationSettings = memo(() => {
             }),
             isHidden: false,
             title: t('setting.playerbarOpenDrawer'),
+        },
+        {
+            control: (
+                <NumberInput
+                    max={120}
+                    min={0}
+                    onBlur={(e) => {
+                        const rawValue = e.currentTarget.value;
+
+                        const newVal = Math.min(Math.max(Number(rawValue), 0), 120);
+
+                        setSettings({
+                            general: {
+                                ...settings,
+                                fullscreenAutoOpenTimeout: newVal,
+                            },
+                        });
+                    }}
+                    placeholder={t('common.none')}
+                    value={settings.fullscreenAutoOpenTimeout}
+                />
+            ),
+            description: t('setting.fullscreenAutoOpenTimeout', {
+                context: 'description',
+            }),
+            isHidden: false,
+            title: t('setting.fullscreenAutoOpenTimeout'),
         },
         {
             control: (

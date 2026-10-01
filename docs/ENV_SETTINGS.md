@@ -22,7 +22,8 @@ These variables override app settings **on first run** when no persisted setting
 | `general.followCurrentSong` | `true` | `FS_GENERAL_FOLLOW_CURRENT_SONG` | `true` / `false` — Follow current song in list. |
 | `general.followSystemTheme` | `false` | `FS_GENERAL_FOLLOW_SYSTEM_THEME` | `true` / `false` — Use OS light/dark preference. |
 | `general.homeFeature` | `true` | `FS_GENERAL_HOME_FEATURE` | `true` / `false` — Show home featured carousel. |
-| `general.homeFeatureStyle` | `single` | `FS_GENERAL_HOME_FEATURE_STYLE` | `multiple` / `single` — Home featured carousel style. |
+| `general.homeFeatureStyle` | `single` | `FS_GENERAL_HOME_FEATURE_STYLE` | `multiple` / `single` - Home featured carousel style. |
+| `general.imagePlaceholderPriority` | `thumbhash` | `FS_GENERAL_IMAGE_PLACEHOLDER_PRIORITY` | `thumbhash` / `blurhash` / `dominantColor` / `off` - Which image placeholder shows first while art loads; `off` disables placeholders. |
 | `general.language` | `en` | `FS_GENERAL_LANGUAGE` | UI language code (e.g. `en`, `de`, `fr`). |
 | `general.theme` | `defaultDark` | `FS_GENERAL_THEME` | One of: `ayuDark`, `ayuLight`, `catppuccinLatte`, `catppuccinMocha`, `defaultDark`, `defaultLight`, `dracula`, `githubDark`, `githubLight`, `glassyDark`, `gruvboxDark`, `gruvboxLight`, `highContrastDark`, `highContrastLight`, `materialDark`, `materialLight`, `monokai`, `nightOwl`, `nord`, `oneDark`, `rosePine`, `rosePineDawn`, `rosePineMoon`, `shadesOfPurple`, `solarizedDark`, `solarizedLight`, `tokyoNight`, `vscodeDarkPlus`, `vscodeLightPlus`. |
 | `general.themeDark` | `defaultDark` | `FS_GENERAL_THEME_DARK` | Same as theme (used when system is dark). |
@@ -43,6 +44,7 @@ These variables override app settings **on first run** when no persisted setting
 | `general.showVisualizerInSidebar` | `true` | `FS_GENERAL_SHOW_VISUALIZER_IN_SIDEBAR` | `true` / `false` — Show visualizer in sidebar. |
 | `general.sidebarCollapsedNavigation` | `true` | `FS_GENERAL_SIDEBAR_COLLAPSED_NAVIGATION` | `true` / `false` — Start with collapsed sidebar nav. |
 | `general.sidebarCollapseShared` | `false` | `FS_GENERAL_SIDEBAR_COLLAPSE_SHARED` | `true` / `false` — Share sidebar collapse state. |
+| `general.sidebarImageExpand` | `false` | `FS_GENERAL_SIDEBAR_IMAGE_EXPAND` | `true` / `false` — Show the player-bar album-art button that expands art into the sidebar. |
 | `general.sidebarPlaylistFolders` | `true` | `FS_GENERAL_SIDEBAR_PLAYLIST_FOLDERS` | `true` / `false` — Group playlists into folders by name separator. |
 | `general.sidebarPlaylistFolderSeparator` | `/` | `FS_GENERAL_SIDEBAR_PLAYLIST_FOLDER_SEPARATOR` | Character or string that separates folder levels in a playlist name. Empty = use default. |
 | `general.sidebarPlaylistFolderTreeIndent` | `16` | `FS_GENERAL_SIDEBAR_PLAYLIST_FOLDER_TREE_INDENT` | Pixels each tree level is indented (0–64). |

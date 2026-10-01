@@ -85,6 +85,7 @@ export interface SavedCollection {
 }
 
 export type ServerListItem = {
+    enableAudiobooks?: boolean;
     features?: ServerFeatures;
     id: string;
     isAdmin?: boolean;
@@ -180,10 +181,14 @@ export type Album = {
     albumArtistName: string;
     albumArtists: RelatedArtist[];
     artists: RelatedArtist[];
+    blurHash: null | string;
     comment: null | string;
     createdAt: string;
+    discs: Disc | null;
+    dominantColor: null | string;
     duration: null | number;
     explicitStatus: ExplicitStatus | null;
+    gain: GainInfo | null;
     genres: Genre[];
     id: string;
     imageId: null | string;
@@ -192,11 +197,14 @@ export type Album = {
     lastPlayedAt: null | string;
     mbzId: null | string;
     mbzReleaseGroupId: null | string;
+    missing: boolean | null;
     name: string;
     originalDate: null | PartialIsoDateString;
-    originalYear: number;
+    originalYear: null | number;
     participants: null | Record<string, RelatedArtist[]>;
+    peak: GainInfo | null;
     playCount: null | number;
+    ratedAt: null | string;
     recordLabels: string[];
     releaseDate: null | PartialIsoDateString;
     releaseType: null | string;
@@ -206,7 +214,9 @@ export type Album = {
     songCount: null | number;
     songs?: Song[];
     sortName: string;
+    starredAt: null | string;
     tags: null | Record<string, string[]>;
+    thumbHash: null | string;
     trackYearRange: null | { max: number; min: number };
     updatedAt: string;
     userFavorite: boolean;
@@ -220,6 +230,8 @@ export type AlbumArtist = {
     _serverType: ServerType;
     albumCount: null | number;
     biography: null | string;
+    blurHash: null | string;
+    dominantColor: null | string;
     duration: null | number;
     genres: Genre[];
     id: string;
@@ -227,10 +239,14 @@ export type AlbumArtist = {
     imageUrl: null | string;
     lastPlayedAt: null | string;
     mbz: null | string;
+    missing: boolean | null;
     name: string;
     playCount: null | number;
+    ratedAt: null | string;
     similarArtists: null | RelatedArtist[];
     songCount: null | number;
+    starredAt: null | string;
+    thumbHash: null | string;
     uploadedImage?: string;
     userFavorite: boolean;
     userRating: null | number;
@@ -259,6 +275,8 @@ export interface BaseQuery<T> {
     sortBy: T;
     sortOrder: SortOrder;
 }
+
+export type Disc = Record<number, string>;
 
 export type EndpointDetails = {
     server: ServerListItem;
@@ -339,8 +357,11 @@ export type Playlist = {
     _itemType: LibraryItem.PLAYLIST;
     _serverId: string;
     _serverType: ServerType;
+    blurHash: null | string;
     description: null | string;
+    dominantColor: null | string;
     duration: null | number;
+    evaluatedAt: null | string;
     genres: Genre[];
     id: string;
     imageId: null | string;
@@ -353,6 +374,7 @@ export type Playlist = {
     size: null | number;
     songCount: null | number;
     sync?: boolean | null;
+    thumbHash: null | string;
     uploadedImage?: string;
 };
 
@@ -382,8 +404,10 @@ export type Song = {
     artists: RelatedArtist[];
     bitDepth: null | number;
     bitRate: number;
+    blurHash: null | string;
     bpm: null | number;
     channels: null | number;
+    codec: null | string;
     comment: null | string;
     compilation: boolean | null;
     container: null | string;
@@ -393,16 +417,26 @@ export type Song = {
     discSubtitle: null | string;
     duration: number;
     explicitStatus: ExplicitStatus | null;
+    folderId: null | string;
     gain: GainInfo | null;
     genres: Genre[];
     id: string;
     imageId: null | string;
     imageUrl: null | string;
+    isResumable?: boolean;
     lastPlayedAt: null | string;
+    libraryId: null | number;
+    libraryName: null | string;
     lyrics: null | string;
+    mbzAlbumId: null | string;
+    mbzAlbumType: null | string;
     mbzRecordingId: null | string;
+    mbzReleaseGroupId: null | string;
     mbzTrackId: null | string;
+    missing: boolean | null;
     name: string;
+    originalDate: null | PartialIsoDateString;
+    originalYear: null | number;
     participants: null | Record<string, RelatedArtist[]>;
     path: null | string;
     peak: GainInfo | null;
@@ -410,10 +444,12 @@ export type Song = {
     playlistItemId?: string;
     releaseDate: null | PartialIsoDateString;
     releaseYear: null | number;
+    resumePositionMs?: number;
     sampleRate: null | number;
     size: number;
     sortName: string;
     tags: null | Record<string, string[]>;
+    thumbHash: null | string;
     trackNumber: number;
     trackSubtitle: null | string;
     updatedAt: string;
@@ -1055,6 +1091,7 @@ export type InternetRadioStation = {
     imageUrl?: null | string;
     name: string;
     streamUrl: string;
+    thumbHash?: null | string;
     uploadedImage?: null | string;
 };
 
@@ -1076,6 +1113,7 @@ export type PlaylistListResponse = BasePaginatedResponse<Playlist[]>;
 export type PlaylistRules = Record<string, any> & {
     limit?: number;
     limitPercent?: number;
+    refreshDelay?: string;
     sort?: string;
 };
 
@@ -1349,7 +1387,7 @@ export type FavoriteSongListResponse = BasePaginatedResponse<Song[]>;
 
 export type FullLyricsMetadata = Omit<InternetProviderLyricResponse, 'id' | 'lyrics' | 'source'> & {
     lyrics: LyricsResponse;
-    offsetMs?: number;
+    offsetMs?: null | number;
     remote: boolean;
     source: string;
 };
@@ -1427,7 +1465,7 @@ export type ScrobbleArgs = BaseEndpointArgs & {
 
 export type ScrobbleQuery = {
     albumId?: string;
-    event?: 'pause' | 'start' | 'stop' | 'unpause';
+    event?: 'pause' | 'start' | 'stop' | 'timeupdate' | 'unpause';
     id: string;
     mediaType: 'podcast' | 'song';
     playbackRate: number;
@@ -1552,10 +1590,7 @@ export type ArtistRadioQuery = {
 
 export type ControllerEndpoint = {
     addToPlaylist: (args: AddToPlaylistArgs) => Promise<AddToPlaylistResponse>;
-    authenticate: (
-        url: string,
-        body: { legacy?: boolean; password: string; username: string },
-    ) => Promise<AuthenticationResponse>;
+    authenticate: (url: string, body: Record<string, any>) => Promise<any>;
     createFavorite: (args: FavoriteArgs) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: CreateInternetRadioStationArgs,
@@ -1689,10 +1724,7 @@ export type InternalControllerEndpoint = {
     addToPlaylist: (
         args: ReplaceApiClientProps<AddToPlaylistArgs>,
     ) => Promise<AddToPlaylistResponse>;
-    authenticate: (
-        url: string,
-        body: { legacy?: boolean; password: string; username: string },
-    ) => Promise<AuthenticationResponse>;
+    authenticate: (url: string, body: Record<string, any>) => Promise<any>;
     createFavorite: (args: ReplaceApiClientProps<FavoriteArgs>) => Promise<FavoriteResponse>;
     createInternetRadioStation: (
         args: ReplaceApiClientProps<CreateInternetRadioStationArgs>,
@@ -1946,11 +1978,17 @@ export type StreamArgs = BaseEndpointArgs & {
 
 export type StreamQuery = {
     bitrate?: number;
+    container?: null | string;
     format?: string;
+    forRenderer?: boolean;
     id: string;
+    maxSampleRate?: number;
     mediaType?: 'podcast' | 'song';
     offset?: number;
+    sampleRate?: null | number;
     skipAutoTranscode?: boolean;
+    /** Start offset in seconds for a server-side transcode (Jellyfin `startTimeTicks`). */
+    startTime?: number;
     transcode: boolean;
 };
 

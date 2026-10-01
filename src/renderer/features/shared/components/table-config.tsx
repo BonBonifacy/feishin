@@ -32,7 +32,6 @@ import { ActionIcon, ActionIconGroup } from '/@/shared/components/action-icon/ac
 import { Badge } from '/@/shared/components/badge/badge';
 import { Button } from '/@/shared/components/button/button';
 import { Checkbox } from '/@/shared/components/checkbox/checkbox';
-import { Divider } from '/@/shared/components/divider/divider';
 import { Group } from '/@/shared/components/group/group';
 import { NumberInput } from '/@/shared/components/number-input/number-input';
 import { SegmentedControl } from '/@/shared/components/segmented-control/segmented-control';
@@ -59,6 +58,7 @@ interface TableConfigProps {
             hidden?: boolean;
         };
     };
+    section: 'columns' | 'general';
     tableColumnsData: { label: string; value: string }[];
     tableKey?: 'detail' | 'main';
 }
@@ -68,6 +68,7 @@ export const TableConfig = ({
     extraOptions,
     listKey,
     optionsConfig,
+    section,
     tableColumnsData,
     tableKey = 'main',
 }: TableConfigProps) => {
@@ -81,7 +82,6 @@ export const TableConfig = ({
     const albumGroupVerticalLayout = useSettingsStore(
         (state) => state.general.albumGroupVerticalLayout,
     );
-    const imageResTable = useSettingsStore((state) => state.general.imageRes.table);
     const { setList, setSettings } = useSettingsStoreActions();
     const [albumGroupOpen, setAlbumGroupOpen] = useState(false);
 
@@ -141,14 +141,7 @@ export const TableConfig = ({
                                                         ),
                                                     );
                                                     setSettings({
-                                                        general: {
-                                                            albumGroupImageSize: size,
-                                                            // Source table art must be at least as
-                                                            // large as the displayed album image.
-                                                            ...(size >= imageResTable
-                                                                ? { imageRes: { table: size } }
-                                                                : {}),
-                                                        },
+                                                        general: { albumGroupImageSize: size },
                                                     });
                                                 }}
                                                 rightSection={
@@ -391,23 +384,27 @@ export const TableConfig = ({
         albumGroupImageSize,
         albumGroupShowFavoriteRating,
         albumGroupVerticalLayout,
-        imageResTable,
         setSettings,
     ]);
 
     return (
         <>
-            <ListConfigTable options={advancedSettings} />
-            {hasAlbumGroupColumn && tableKey === 'main' && albumGroupOpen && (
-                <AlbumGroupMetadataConfig />
+            {section === 'general' && (
+                <>
+                    <ListConfigTable options={advancedSettings} />
+                    {hasAlbumGroupColumn && tableKey === 'main' && albumGroupOpen && (
+                        <AlbumGroupMetadataConfig />
+                    )}
+                </>
             )}
-            <Divider />
-            <TableColumnConfig
-                data={tableColumnsData}
-                enablePinColumnButtons={enablePinColumnButtons}
-                onChange={(columns) => setTableUpdate({ columns })}
-                value={table.columns}
-            />
+            {section === 'columns' && (
+                <TableColumnConfig
+                    data={tableColumnsData}
+                    enablePinColumnButtons={enablePinColumnButtons}
+                    onChange={(columns) => setTableUpdate({ columns })}
+                    value={table.columns}
+                />
+            )}
         </>
     );
 };

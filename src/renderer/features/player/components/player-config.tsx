@@ -2,6 +2,8 @@ import isElectron from 'is-electron';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { eventEmitter } from '/@/renderer/events/event-emitter';
+import { usePlayer } from '/@/renderer/features/player/context/player-context';
 import {
     getDefaultAudioDevice,
     useAudioDevices,
@@ -241,36 +243,59 @@ export const PlayerConfig = () => {
 };
 
 const AudioPlayerTypeConfig = () => {
+    const { t } = useTranslation();
     const status = usePlayerStatus();
     const playbackSettings = usePlaybackSettings();
     const { setSettings } = useSettingsStoreActions();
+    const { mediaStop } = usePlayer();
+
+    const showRefreshButton = playbackSettings.type === PlayerType.LOCAL;
+
+    const isCasting = playbackSettings.type === PlayerType.DLNA;
 
     return (
-        <Select
-            comboboxProps={{ withinPortal: false }}
-            data={[
-                {
-                    disabled: !isElectron(),
-                    label: 'MPV',
-                    value: PlayerType.LOCAL,
-                },
-                { label: 'Web', value: PlayerType.WEB },
-                { label: 'Jukebox', value: PlayerType.JUKEBOX },
-            ]}
-            defaultValue={playbackSettings.type}
-            disabled={status === PlayerStatus.PLAYING}
-            onChange={(e) => {
-                setSettings({
-                    playback: { ...playbackSettings, type: e as PlayerType },
-                });
-                ipc?.send('settings-set', {
-                    property: 'playbackType',
-                    value: e,
-                });
-            }}
-            variant="filled"
-            width="100%"
-        />
+        <Group gap="xs" wrap="nowrap">
+            <Select
+                comboboxProps={{ withinPortal: false }}
+                data={[
+                    {
+                        disabled: !isElectron(),
+                        label: 'MPV',
+                        value: PlayerType.LOCAL,
+                    },
+                    { label: 'Web', value: PlayerType.WEB },
+                    { label: 'Jukebox', value: PlayerType.JUKEBOX },
+                    ...(isCasting
+                        ? [{ disabled: true, label: 'DLNA', value: PlayerType.DLNA }]
+                        : []),
+                ]}
+                defaultValue={playbackSettings.type}
+                disabled={status === PlayerStatus.PLAYING || isCasting}
+                onChange={(e) => {
+                    setSettings({
+                        playback: { ...playbackSettings, type: e as PlayerType },
+                    });
+                    ipc?.send('settings-set', {
+                        property: 'playbackType',
+                        value: e,
+                    });
+                }}
+                variant="filled"
+                width="100%"
+            />
+            {showRefreshButton && (
+                <ActionIcon
+                    icon="refresh"
+                    iconProps={{ size: 'md' }}
+                    onClick={() => {
+                        mediaStop();
+                        eventEmitter.emit('MPV_RELOAD', {});
+                    }}
+                    tooltip={{ label: t('common.reload') }}
+                    variant="transparent"
+                />
+            )}
+        </Group>
     );
 };
 
@@ -291,6 +316,7 @@ const AudioDeviceConfig = () => {
             comboboxProps={{ withinPortal: false }}
             data={audioDevices}
             disabled={status === PlayerStatus.PLAYING}
+            key={playbackType}
             onChange={(e) => {
                 setSettings({
                     playback: {
@@ -392,8 +418,10 @@ const CrossfadeDurationConfig = () => {
                 { label: '9', value: 9 },
                 { label: '12', value: 12 },
                 { label: '15', value: 15 },
+                { label: '18', value: 18 },
+                { label: '21', value: 21 },
             ]}
-            max={15}
+            max={21}
             min={3}
             onChangeEnd={setCrossfadeDuration}
             styles={{
