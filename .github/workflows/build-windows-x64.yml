@@ -14,6 +14,8 @@ on:
                 type: string
                 default: ''
     push:
+        branches:
+            - feat/lyrics-highlight-fix
         tags:
             - 'v*'
 
