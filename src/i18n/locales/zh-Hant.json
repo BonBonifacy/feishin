@@ -104,7 +104,7 @@
         "tableColumns": "表格欄位",
         "clean": "清除",
         "explicitStatus": "露骨狀態",
-        "explicit": "露骨",
+        "explicit": "露骨內容",
         "gridRows": "網格列",
         "noFilters": "未配置篩選器",
         "countSelected": "{{count}} 個已選取",
@@ -485,7 +485,9 @@
         "scrobbleForceSubmit": "強制紀錄",
         "sleepTimer_endOfAlbum": "專輯播完時",
         "nextAlbum": "Alt + 點擊：下一張專輯",
-        "previousAlbum": "Alt + 點擊：上一張專輯"
+        "previousAlbum": "Alt + 點擊：上一張專輯",
+        "queueSection_queue": "佇列",
+        "queueSection_upNext": "即將播放"
     },
     "setting": {
         "audioPlayer_description": "選擇用於播放的音訊播放器",
@@ -546,8 +548,8 @@
         "hotkey_rate3": "評為 3 星",
         "hotkey_rate4": "評為 4 星",
         "hotkey_rate5": "評為 5 星",
-        "hotkey_skipBackward": "退進",
-        "hotkey_skipForward": "快進",
+        "hotkey_skipBackward": "倒轉",
+        "hotkey_skipForward": "快轉",
         "hotkey_toggleCurrentSongFavorite": "切換收藏 $t(common.currentSong)",
         "hotkey_toggleFullScreenPlayer": "切換全螢幕播放器",
         "hotkey_togglePreviousSongFavorite": "切換收藏 $t(common.previousSong)",
@@ -976,7 +978,9 @@
         "imagePlaceholderPriority_optionBlurhash": "BlurHash",
         "imagePlaceholderPriority_optionDominantColor": "主要顏色",
         "imagePlaceholderPriority_optionOff": "關閉",
-        "imagePlaceholderPriority_optionThumbhash": "ThumbHash"
+        "imagePlaceholderPriority_optionThumbhash": "ThumbHash",
+        "upNextQueue_description": "「接續播放」會將歌曲依新增順序加入至目前播放歌曲之後的「即將播放」區域。當佇列隨機播放或替換時，「即將播放」仍會保持在最前列。停用此功能則會將每次選擇的「接續播放」直接插在目前播放歌曲的正後方",
+        "upNextQueue": "「即將播放」佇列"
     },
     "table": {
         "config": {
@@ -984,7 +988,7 @@
                 "displayType": "顯示風格",
                 "gap": "$t(common.gap)",
                 "size": "$t(common.size)",
-                "tableColumns": "列",
+                "tableColumns": "欄位",
                 "autoFitColumns": "自動調整列寬",
                 "followCurrentSong": "跟隨目前歌曲",
                 "itemGap": "項目間隔 (px)",
@@ -1008,7 +1012,7 @@
                 "pagination_paginate": "分頁式",
                 "alternateRowColors": "隔行上色",
                 "horizontalBorders": "行邊框線",
-                "rowHoverHighlight": "滑鼠懸停時醒目顯示",
+                "rowHoverHighlight": "滑鼠暫留時醒目顯示",
                 "verticalBorders": "列邊框線",
                 "showHeader": "顯示標題",
                 "albumGroupConfig": "專輯群組設定",
@@ -1242,7 +1246,9 @@
             "input_jellyfinSignInMethod": "登入方式",
             "input_jellyfinSignInMethodPassword": "密碼",
             "input_jellyfinSignInMethodQuickConnect": "快速連線",
-            "input_remoteUrlDescription": "取代原本的 URL 用於外部功能（例如分享連結）。除非您的伺服器可從外部網路透過不同的位址連線，否則請保持留空。"
+            "input_remoteUrlDescription": "取代原本的 URL 用於外部功能（例如分享連結）。除非您的伺服器可從外部網路透過不同的位址連線，否則請保持留空。",
+            "input_enableAudiobooks": "啟用有聲書",
+            "input_enableAudiobooksDescription": "顯示「書籍」資料庫的有聲書內容"
         },
         "addToPlaylist": {
             "input_playlists": "$t(entity.playlist, {\"count\": 2})",
@@ -1372,7 +1378,7 @@
             "mixtape": "混音帶",
             "remix": "Remix",
             "soundtrack": "原聲帶",
-            "spokenWord": "訪談"
+            "spokenWord": "口白"
         }
     },
     "dragDropZone": {
@@ -1541,7 +1547,7 @@
             },
             "gradient": {
                 "classic": "經典",
-                "prism": "菱鏡",
+                "prism": "稜鏡",
                 "rainbow": "彩虹",
                 "steelblue": "鋼藍",
                 "orangered": "橙紅色"
@@ -1554,7 +1560,7 @@
             },
             "frequencyScale": {
                 "none": "無",
-                "bark": "比例刻度",
+                "bark": "Bark 比例",
                 "linear": "線性比例",
                 "log": "Log 比例",
                 "mel": "Mel 比例"
