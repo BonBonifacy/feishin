@@ -1,0 +1,72 @@
+name: Build Windows x64 EXE
+
+on:
+    workflow_dispatch:
+        inputs:
+            create_release:
+                description: '是否发布到 GitHub Releases'
+                required: false
+                type: boolean
+                default: false
+            release_tag:
+                description: 'Release Tag（仅在勾选发布时生效，留空则自动生成）'
+                required: false
+                type: string
+                default: ''
+    push:
+        tags:
+            - 'v*'
+
+permissions:
+    contents: write
+
+jobs:
+    build:
+        name: Build Windows x64
+        runs-on: windows-latest
+        env:
+            NODE_OPTIONS: --max-old-space-size=4096
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Install PNPM
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - name: Build renderer and main process
+              run: pnpm run build
+
+            - name: Package Windows x64 EXE
+              run: pnpm exec electron-builder --win --x64 --publish never
+
+            - name: Upload Build Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Feishin-Windows-x64
+                  path: |
+                      dist/*.exe
+                      dist/*-win-x64.zip
+                  retention-days: 30
+
+            - name: Publish to GitHub Releases
+              if: ${{ inputs.create_release == true || startsWith(github.ref, 'refs/tags/v') }}
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ inputs.release_tag != '' && inputs.release_tag || github.ref_name }}
+                  files: |
+                      dist/*.exe
+                      dist/*-win-x64.zip
+                  draft: false
+                  prerelease: false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
