@@ -136,7 +136,7 @@ export const SynchronizedLyrics = ({
     );
 
     const lyricTimer = useRef<null | ReturnType<typeof setTimeout>>(null);
-    const lyricRef = useRef<null | [number, string][]>(null);
+    const lyricRef = useRef<[number, string][] | null>(null);
     const timerEpoch = useRef(0);
 
     const delayMsRef = useRef(effectiveOffsetMs);
@@ -149,9 +149,9 @@ export const SynchronizedLyrics = ({
 
     const lastBaseTimeMsRef = useRef(0);
     const lastLocalTimeMsRef = useRef(0);
-    const rAFRef = useRef<number | null>(null);
+    const rAFRef = useRef<null | number>(null);
     const lastActiveIndexRef = useRef(-1);
-    const lastSongIdRef = useRef<string | null>(null);
+    const lastSongIdRef = useRef<null | string>(null);
 
     const getCurrentLyric = (timeInMs: number) => {
         const activeLyrics = lyricRef.current;
@@ -254,9 +254,10 @@ export const SynchronizedLyrics = ({
 
             const wordNodes = currentLyric.querySelectorAll('.lyric-word');
             const activeLyrics = lyricRef.current;
-            const nextLineTime = (activeLyrics && index < activeLyrics.length - 1)
-                ? activeLyrics[index + 1][0]
-                : Infinity;
+            const nextLineTime =
+                activeLyrics && index < activeLyrics.length - 1
+                    ? activeLyrics[index + 1][0]
+                    : Infinity;
 
             for (let i = 0; i < wordNodes.length; i++) {
                 const wordNode = wordNodes[i] as HTMLElement;
@@ -264,7 +265,10 @@ export const SynchronizedLyrics = ({
 
                 let nextWordTime = nextLineTime;
                 if (i < wordNodes.length - 1) {
-                    const parsedNext = parseInt(wordNodes[i + 1].getAttribute('data-time') || '0', 10);
+                    const parsedNext = parseInt(
+                        wordNodes[i + 1].getAttribute('data-time') || '0',
+                        10,
+                    );
                     if (parsedNext > wordTime) {
                         nextWordTime = parsedNext;
                     }
@@ -277,7 +281,10 @@ export const SynchronizedLyrics = ({
                 } else if (timeInMs >= wordTime) {
                     const duration = nextWordTime - wordTime;
                     if (duration > 0) {
-                        progress = Math.min(100, Math.max(0, ((timeInMs - wordTime) / duration) * 100));
+                        progress = Math.min(
+                            100,
+                            Math.max(0, ((timeInMs - wordTime) / duration) * 100),
+                        );
                     } else {
                         progress = 100;
                     }

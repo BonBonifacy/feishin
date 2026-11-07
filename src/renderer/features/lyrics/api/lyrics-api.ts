@@ -71,7 +71,7 @@ const parseWordTime = (timeStr: string) => {
 
 const convertSyllableLyricsToHtml = (text: string) => {
     if (!text) return '';
-    const wordTimeExp = /([<\[\(](?:\d{1,}:?\d{2}(?:\.\d{1,3})?|\d+(?:,\d+)?)[>\]\)])/g;
+    const wordTimeExp = /([<[(](?:\d{1,}:?\d{2}(?:\.\d{1,3})?|\d+(?:,\d+)?)[>\])])/g;
     if (!wordTimeExp.test(text)) {
         return text;
     }
@@ -155,7 +155,10 @@ const formatLyrics = (lyrics: string) => {
 
         const timeInMilis = (minutes * 60 + seconds) * 1000 + milis;
 
-        formattedLyrics.push({ startMs: timeInMilis, text: convertSyllableLyricsToHtml(text.trim()) });
+        formattedLyrics.push({
+            startMs: timeInMilis,
+            text: convertSyllableLyricsToHtml(text.trim()),
+        });
     }
 
     if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);
@@ -167,7 +170,10 @@ const formatLyrics = (lyrics: string) => {
             .replaceAll(/\(\d+,\d+\)/g, '')
             .replaceAll(/\s,/g, ',')
             .replaceAll(/\s\./g, '.');
-        formattedLyrics.push({ startMs: Number(timeInMilis), text: convertSyllableLyricsToHtml(cleanText.trim()) });
+        formattedLyrics.push({
+            startMs: Number(timeInMilis),
+            text: convertSyllableLyricsToHtml(cleanText.trim()),
+        });
     }
 
     if (formattedLyrics.length > 0) return mergeBilingualLyrics(formattedLyrics);

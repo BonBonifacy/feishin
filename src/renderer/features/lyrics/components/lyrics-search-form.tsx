@@ -262,8 +262,8 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                                     {Array.isArray(previewData) ? (
                                         lyricsHasWordCues(previewData) ? (
                                             <SynchronizedKaraokeLyrics
-                                                preview
                                                 key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
+                                                preview
                                                 style={{ padding: 0 }}
                                                 {...({
                                                     artist: selectedResult.artist,
@@ -275,8 +275,8 @@ export const LyricsSearchForm = ({ artist, name, onSearchOverride }: LyricSearch
                                             />
                                         ) : (
                                             <SynchronizedLyrics
-                                                preview
                                                 key={`${selectedResult.artist}-${selectedResult.name}-${previewData.length}`}
+                                                preview
                                                 style={{ padding: 0 }}
                                                 {...({
                                                     artist: selectedResult.artist,

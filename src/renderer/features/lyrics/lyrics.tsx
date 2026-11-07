@@ -29,7 +29,6 @@ import {
     useSyncedRomajiLyrics,
 } from '/@/renderer/features/lyrics/hooks/use-furigana-lyrics';
 import { LyricsActions } from '/@/renderer/features/lyrics/lyrics-actions';
-import { SynchronizedKaraokeLyrics } from '/@/renderer/features/lyrics/synchronized-karaoke-lyrics';
 import {
     SynchronizedLyrics,
     SynchronizedLyricsProps,
@@ -247,14 +246,6 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
             .map((entry) => (entry.synced ? entry.lyrics : null))
             .filter((entry): entry is NonNullable<typeof entry> => entry != null);
     }, [visibleOverlayLayers]);
-
-    const selectedAgents = useMemo(() => {
-        if (!lyrics || !('synced' in lyrics) || !lyrics.synced) {
-            return undefined;
-        }
-
-        return lyrics.agents;
-    }, [lyrics]);
 
     const displayOffsetMs = isLyricsDisabled ? 0 : currentOffsetMs;
     const useServerPronunciation = !!pronunciationLyricsOverlay;
@@ -546,18 +537,10 @@ export const Lyrics = ({ fadeOutNoLyricsMessage = true, settingsKey = 'default' 
                                 initial={{ opacity: 0 }}
                                 transition={{ duration: 0.5 }}
                             >
-                                {synced ? (
+                                {synced && syncedLyricsProps ? (
                                     <SynchronizedLyrics
                                         key={currentSong?.id}
-                                        {...(displayLyrics as SynchronizedLyricsProps)}
-                                        offsetMs={displayOffsetMs}
-                                        romajiLyrics={
-                                            enableRomaji
-                                                ? (romajiConvertedLyrics as SynchronizedLyricsProps['romajiLyrics'])
-                                                : null
-                                        }
-                                        settingsKey={settingsKey}
-                                        translatedLyrics={showTranslation ? translatedLyrics : null}
+                                        {...syncedLyricsProps}
                                     />
                                 ) : (
                                     <UnsynchronizedLyrics
